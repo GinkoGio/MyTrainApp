@@ -6,7 +6,7 @@ import History from './pages/History';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/MyTrainApp">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/plans" element={<PlanBuilder />} />
