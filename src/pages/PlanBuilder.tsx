@@ -22,6 +22,8 @@ export default function PlanBuilder() {
   const [newPlanName, setNewPlanName] = useState('');
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [editingExercise, setEditingExercise] = useState<{ dayId: string; ex: PlannedExercise } | null>(null);
+  const [importPreview, setImportPreview] = useState<TrainingPlan | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
@@ -102,13 +104,23 @@ export default function PlanBuilder() {
     e.target.value = ''; // permette di re-importare lo stesso file
     if (!file) return;
     try {
+      // La conferma avviene in un modale in-app, non con confirm() nativo:
+      // dopo un await il contesto del gesto utente è perso e alcuni browser
+      // bloccano i dialog nativi, annullando silenziosamente l'import.
       const plan = parsePlan(await file.text());
-      if (!confirm(`Importare "${plan.name}"?\n${planSummary(plan)}`)) return;
-      addPlan(plan);
-      setSelectedPlanId(plan.id);
+      setImportError(null);
+      setImportPreview(plan);
     } catch (err) {
-      alert(`Import non riuscito: ${err instanceof Error ? err.message : 'file non valido'}`);
+      setImportPreview(null);
+      setImportError(err instanceof Error ? err.message : 'File non valido.');
     }
+  };
+
+  const confirmImport = () => {
+    if (!importPreview) return;
+    addPlan(importPreview);
+    setSelectedPlanId(importPreview.id);
+    setImportPreview(null);
   };
 
   return (
@@ -322,6 +334,53 @@ export default function PlanBuilder() {
           onSave={handleSaveExercise}
           onCancel={() => setEditingExercise(null)}
         />
+      )}
+
+      {/* Conferma import (modale in-app) */}
+      {importPreview && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-6"
+          style={{ background: 'rgba(10,8,7,0.6)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setImportPreview(null)}
+        >
+          <div className="tt-card p-[22px] flex flex-col gap-2 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="tt-display text-[20px]">Importare questa scheda?</div>
+            <p className="font-display font-bold text-[15px] text-text-1">{importPreview.name}</p>
+            <p className="font-mono text-[12px] text-text-3">{planSummary(importPreview)}</p>
+            <p className="font-body text-[12.5px] text-text-2">Verrà aggiunta come nuova scheda.</p>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setImportPreview(null)}
+                className="flex-1 bg-surface-2 border border-border text-text-2 py-[13px] rounded-btn font-display font-semibold text-[14px] cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button onClick={confirmImport} className="flex-1 tt-btn-primary py-[13px] text-[14.5px]">
+                Importa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Errore import (modale in-app) */}
+      {importError && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-6"
+          style={{ background: 'rgba(10,8,7,0.6)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setImportError(null)}
+        >
+          <div className="tt-card p-[22px] flex flex-col gap-2 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="tt-display text-[20px]">Import non riuscito</div>
+            <p className="font-body text-[13.5px] text-text-2">{importError}</p>
+            <button
+              onClick={() => setImportError(null)}
+              className="tt-btn-primary py-[13px] text-[14.5px] mt-2"
+            >
+              Ho capito
+            </button>
+          </div>
+        </div>
       )}
 
       <BottomNav />
