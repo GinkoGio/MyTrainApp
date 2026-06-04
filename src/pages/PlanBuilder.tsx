@@ -609,7 +609,10 @@ function ExerciseEditor({
             className="w-full bg-surface text-text-1 rounded-input px-[15px] py-[13px] outline-none border border-border focus:border-accent transition-colors font-body text-[15.5px] placeholder:text-text-3"
           />
           {showSug && filteredSug.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-[6px] bg-surface border border-border rounded-input shadow-card z-10 overflow-hidden max-h-52 overflow-y-auto">
+            <div
+              className="absolute left-0 right-0 top-full mt-[6px] border border-border rounded-input shadow-card z-10 overflow-hidden max-h-52 overflow-y-auto"
+              style={{ background: '#2a211c' }}
+            >
               {filteredSug.map((s) => (
                 <button
                   key={s}
