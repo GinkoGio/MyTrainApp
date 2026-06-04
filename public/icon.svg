@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="0" fill="#4f46e5"/>
+  <g fill="#ffffff">
+    <!-- left outer plate -->
+    <rect x="84" y="176" width="34" height="160" rx="14"/>
+    <!-- left inner plate -->
+    <rect x="126" y="200" width="34" height="112" rx="14"/>
+    <!-- right inner plate -->
+    <rect x="352" y="200" width="34" height="112" rx="14"/>
+    <!-- right outer plate -->
+    <rect x="394" y="176" width="34" height="160" rx="14"/>
+    <!-- bar -->
+    <rect x="160" y="240" width="192" height="32" rx="16"/>
+  </g>
+</svg>

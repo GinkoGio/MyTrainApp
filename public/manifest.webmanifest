@@ -1,0 +1,19 @@
+{
+  "name": "MyTrainApp",
+  "short_name": "MyTrain",
+  "description": "Gestisci le tue schede di allenamento e seguile in palestra.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
