@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/useSessionStore';
 
@@ -15,14 +15,10 @@ export default function ActiveWorkout() {
   const navigate = useNavigate();
   const { active, completeSet, updateSet, skipRest, goToSet, finishSession, abandonSession } = useSessionStore();
 
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [editReps, setEditReps] = useState<number | null>(null);
   const [editWeight, setEditWeight] = useState<number | null>(null);
   const [showAbandon, setShowAbandon] = useState(false);
-
-  // Track when the current rest period started so we can compute totalRest for the ring
-  const restStartRef = useRef<number>(0);
-  const prevRestingUntilRef = useRef<number | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 500);
@@ -44,7 +40,7 @@ export default function ActiveWorkout() {
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
         osc.start();
         osc.stop(ctx.currentTime + 0.4);
-      } catch {}
+      } catch { /* AudioContext non disponibile — ignora */ }
     }
   }, [active?.restingUntil, now]);
 
@@ -69,15 +65,8 @@ export default function ActiveWorkout() {
 
   const isResting = restingUntil !== null && now < restingUntil;
   const restRemaining = restingUntil ? Math.max(0, Math.ceil((restingUntil - now) / 1000)) : 0;
-
-  // Capture rest start time when a new rest begins
-  if (restingUntil !== null && restingUntil !== prevRestingUntilRef.current) {
-    restStartRef.current = Date.now();
-    prevRestingUntilRef.current = restingUntil;
-  }
-  const totalRest = restingUntil
-    ? Math.max(1, Math.round((restingUntil - restStartRef.current) / 1000))
-    : 1;
+  // Total length of the current rest, used as the ring's full circumference.
+  const totalRest = Math.max(restRemaining, currentEx?.restSeconds ?? 1);
 
   const isLastSet = currentSetIndex >= (currentEx?.sets.length ?? 1) - 1;
   const isLastExercise = currentExerciseIndex >= exercises.length - 1;
