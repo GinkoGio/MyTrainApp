@@ -4,6 +4,7 @@ import { useSessionStore } from '../store/useSessionStore';
 import { uid } from '../utils/id';
 import type { SessionLog, PerformedExercise } from '../types';
 import BottomNav from '../components/BottomNav';
+import { nextDayFor, weeklyStats, currentStreak } from '../store/selectors';
 
 function CornerTicks() {
   return (
@@ -60,17 +61,7 @@ export default function Home() {
 
   const activePlan = plans.find((p) => p.id === activePlanId) ?? plans[0] ?? null;
 
-  const nextDay = (() => {
-    if (!activePlan) return null;
-    if (logs.length === 0) return activePlan.days[0] ?? null;
-    const lastLog = logs.find((l) => l.planId === activePlan.id);
-    if (!lastLog) return activePlan.days[0] ?? null;
-    const sorted = [...activePlan.days].sort((a, b) =>
-      a.week !== b.week ? a.week - b.week : a.day - b.day
-    );
-    const lastIdx = sorted.findIndex((d) => d.id === lastLog.dayId);
-    return sorted[(lastIdx + 1) % sorted.length] ?? sorted[0];
-  })();
+  const nextDay = nextDayFor(activePlan, logs);
 
   const handleStartWorkout = () => {
     if (!nextDay || !activePlan) return;
@@ -96,47 +87,11 @@ export default function Home() {
     navigate('/workout');
   };
 
-  // Weekly stats
-  const weekStart = (() => {
-    const d = new Date();
-    const day = d.getDay() || 7;
-    d.setDate(d.getDate() - (day - 1));
-    d.setHours(0, 0, 0, 0);
-    return d;
-  })();
-  const weekLogs = logs.filter((l) => new Date(l.date) >= weekStart);
-  const weekSessions = weekLogs.length;
-  const weekSets = weekLogs.reduce(
-    (a, l) => a + l.exercises.reduce((b, e) => b + e.sets.filter((s) => s.completed).length, 0),
-    0
-  );
-  const weekVolume = weekLogs.reduce(
-    (a, l) =>
-      a +
-      l.exercises.reduce(
-        (b, e) => b + e.sets.filter((s) => s.completed).reduce((c, s) => c + s.reps * s.weight, 0),
-        0
-      ),
-    0
-  );
+  // Statistiche derivate (vedi store/selectors.ts)
+  const week = weeklyStats(logs);
   const weekVolumeStr =
-    weekVolume >= 1000 ? `${(weekVolume / 1000).toFixed(1)}t` : `${weekVolume}`;
-
-  // Streak: consecutive days back from today with at least one session
-  const streak = (() => {
-    let count = 0;
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    for (;;) {
-      const dayStart = d.getTime();
-      const dayEnd = dayStart + 86400000;
-      if (logs.some((l) => { const t = new Date(l.date).getTime(); return t >= dayStart && t < dayEnd; })) {
-        count++;
-        d.setDate(d.getDate() - 1);
-      } else break;
-    }
-    return count;
-  })();
+    week.volume >= 1000 ? `${(week.volume / 1000).toFixed(1)}t` : `${week.volume}`;
+  const streak = currentStreak(logs);
 
   if (active) {
     return (
@@ -246,8 +201,8 @@ export default function Home() {
             Questa settimana
           </span>
           <div className="grid grid-cols-3 gap-[10px] mt-[10px]">
-            <StatCell value={weekSessions} label="sessioni" />
-            <StatCell value={weekSets} label="serie" />
+            <StatCell value={week.sessions} label="sessioni" />
+            <StatCell value={week.sets} label="serie" />
             <StatCell value={weekVolumeStr} label="ton. volume" />
           </div>
         </div>

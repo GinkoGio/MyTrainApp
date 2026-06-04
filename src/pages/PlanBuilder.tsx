@@ -92,6 +92,7 @@ export default function PlanBuilder() {
         style={{ background: 'linear-gradient(180deg, rgba(22,18,16,0.96), rgba(22,18,16,0.78))', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
         <button
           onClick={() => navigate('/')}
+          aria-label="Torna alla home"
           className="w-9 h-9 flex items-center justify-center rounded-full text-text-2 hover:text-text-1 hover:bg-surface-2 transition-colors active:scale-90 border-none bg-transparent cursor-pointer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -319,6 +320,7 @@ function DayCard({
                   <button
                     onClick={() => onMoveExercise(ex.id, -1)}
                     disabled={idx === 0}
+                    aria-label="Sposta esercizio su"
                     className="disabled:opacity-25 text-xs leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(180deg)' }}>
@@ -328,6 +330,7 @@ function DayCard({
                   <button
                     onClick={() => onMoveExercise(ex.id, 1)}
                     disabled={idx === day.exercises.length - 1}
+                    aria-label="Sposta esercizio giù"
                     className="disabled:opacity-25 text-xs leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -348,6 +351,7 @@ function DayCard({
 
                 <button
                   onClick={() => onDeleteExercise(ex.id)}
+                  aria-label={`Elimina ${ex.name || 'esercizio'}`}
                   className="text-text-3 hover:text-danger w-7 h-7 flex items-center justify-center rounded-input hover:bg-danger/10 transition-colors bg-transparent border-none cursor-pointer"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -461,6 +465,7 @@ function ExerciseEditor({
           <h3 className="tt-display text-[22px]">{isNew ? 'Nuovo esercizio' : 'Modifica esercizio'}</h3>
           <button
             onClick={onCancel}
+            aria-label="Chiudi"
             className="text-text-3 hover:text-text-1 w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors bg-transparent border-none cursor-pointer"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -572,6 +577,7 @@ function ExerciseEditor({
                   {sets.length > 1 && (
                     <button
                       onClick={() => removeAdvSet(idx)}
+                      aria-label={`Rimuovi serie ${idx + 1}`}
                       className="text-text-3 hover:text-danger w-7 h-7 rounded-input hover:bg-danger/10 flex items-center justify-center bg-transparent border-none cursor-pointer"
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -629,6 +635,7 @@ function Stepper({
       <div className={`flex items-center bg-surface rounded-input border border-border ${wide ? 'justify-between px-3' : 'justify-center'} py-2 gap-1`}>
         <button
           onClick={() => onChange(value - step)}
+          aria-label={`Diminuisci ${label}`}
           className="w-8 h-8 rounded-full bg-surface-inset border border-border text-text-1 font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0 hover:border-accent-border cursor-pointer"
         >
           −
@@ -638,6 +645,7 @@ function Stepper({
         </span>
         <button
           onClick={() => onChange(value + step)}
+          aria-label={`Aumenta ${label}`}
           className="w-8 h-8 rounded-full bg-surface-inset border border-border text-text-1 font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0 hover:border-accent-border cursor-pointer"
         >
           +

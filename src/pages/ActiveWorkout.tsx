@@ -196,6 +196,7 @@ export default function ActiveWorkout() {
                           <button
                             key={si}
                             onClick={() => !s.completed && goToSet(ei, si)}
+                            aria-label={`${ex.name}, serie ${si + 1}${s.completed ? ' completata' : ''}`}
                             className={`w-[34px] h-[34px] rounded-chip font-mono font-bold text-[12.5px] flex items-center justify-center transition-all border cursor-pointer ${
                               s.completed
                                 ? 'bg-accent text-on-accent border-transparent'
@@ -345,6 +346,7 @@ function SetInput({
       <div className="flex items-center gap-[10px]">
         <button
           onClick={() => onChange(Math.max(0, +(value - step).toFixed(1)))}
+          aria-label={`Diminuisci ${label}`}
           className="w-[46px] h-[46px] rounded-full border border-border bg-surface-inset text-text-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-accent-border transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -359,6 +361,7 @@ function SetInput({
         </span>
         <button
           onClick={() => onChange(+(value + step).toFixed(1))}
+          aria-label={`Aumenta ${label}`}
           className="w-[46px] h-[46px] rounded-full border border-border bg-surface-inset text-text-1 flex items-center justify-center shrink-0 cursor-pointer hover:border-accent-border transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

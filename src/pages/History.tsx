@@ -24,6 +24,7 @@ export default function History() {
       >
         <button
           onClick={() => navigate('/')}
+          aria-label="Torna alla home"
           className="w-9 h-9 flex items-center justify-center rounded-full text-text-2 hover:text-text-1 hover:bg-surface-2 transition-colors active:scale-90 border-none bg-transparent cursor-pointer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -82,6 +83,7 @@ export default function History() {
                     )}
                     <button
                       onClick={() => deleteLog(log.id)}
+                      aria-label="Elimina sessione dallo storico"
                       className="text-text-3 hover:text-danger transition-colors bg-transparent border-none cursor-pointer"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
