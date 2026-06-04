@@ -17,6 +17,7 @@ interface PlanStore {
   deleteDay: (planId: string, dayId: string) => void;
   duplicateDay: (planId: string, dayId: string) => void;
   duplicateWeek: (planId: string, week: number) => void;
+  reorderDays: (planId: string, week: number, orderedDays: TrainingDay[]) => void;
 
   addExercise: (planId: string, dayId: string, exercise: PlannedExercise) => void;
   updateExercise: (planId: string, dayId: string, exercise: PlannedExercise) => void;
@@ -111,6 +112,17 @@ export const usePlanStore = create<PlanStore>()(
               })),
             }));
             return { ...p, days: [...p.days, ...copies] };
+          }),
+        })),
+
+      // Riordina i giorni di una settimana e li rinumera 1..n in base al nuovo ordine.
+      reorderDays: (planId, week, orderedDays) =>
+        set((s) => ({
+          plans: s.plans.map((p) => {
+            if (p.id !== planId) return p;
+            const renumbered = orderedDays.map((d, i) => ({ ...d, day: i + 1 }));
+            const others = p.days.filter((d) => d.week !== week);
+            return { ...p, days: [...others, ...renumbered] };
           }),
         })),
 

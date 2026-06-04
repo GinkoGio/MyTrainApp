@@ -80,6 +80,32 @@ describe('usePlanStore — duplicazioni', () => {
     expect(copy.exercises[0].sets[0]).toEqual({ reps: 10, weight: 50 });
   });
 
+  it('riordina i giorni di una settimana e li rinumera', () => {
+    const d1 = day({ id: 'd1', week: 1, day: 1 });
+    const d2 = day({ id: 'd2', week: 1, day: 2 });
+    usePlanStore.getState().addPlan(plan({ days: [d1, d2] }));
+    // sposta d2 prima di d1
+    usePlanStore.getState().reorderDays('p1', 1, [d2, d1]);
+
+    const days = usePlanStore.getState().plans[0].days
+      .filter((d) => d.week === 1)
+      .sort((a, b) => a.day - b.day);
+    expect(days.map((d) => d.id)).toEqual(['d2', 'd1']);
+    expect(days.map((d) => d.day)).toEqual([1, 2]); // rinumerati in ordine
+  });
+
+  it('reorderDays non tocca i giorni di altre settimane', () => {
+    const d1 = day({ id: 'd1', week: 1, day: 1 });
+    const d2 = day({ id: 'd2', week: 1, day: 2 });
+    const w2 = day({ id: 'w2', week: 2, day: 1 });
+    usePlanStore.getState().addPlan(plan({ days: [d1, d2, w2] }));
+    usePlanStore.getState().reorderDays('p1', 1, [d2, d1]);
+
+    const week2 = usePlanStore.getState().plans[0].days.filter((d) => d.week === 2);
+    expect(week2).toHaveLength(1);
+    expect(week2[0].id).toBe('w2');
+  });
+
   it('duplica una settimana copiando tutti i giorni alla settimana successiva', () => {
     const d1 = day({ id: 'd1', week: 1, day: 1, exercises: [ex()] });
     const d2 = day({ id: 'd2', week: 1, day: 2, exercises: [ex({ id: 'e2' })] });

@@ -14,7 +14,7 @@ export default function PlanBuilder() {
   const navigate = useNavigate();
   const {
     plans, activePlanId, addPlan, deletePlan, setActivePlan,
-    addDay, deleteDay, duplicateDay, duplicateWeek,
+    addDay, deleteDay, duplicateDay, duplicateWeek, reorderDays,
     addExercise, updateExercise, deleteExercise, reorderExercises,
   } = usePlanStore();
 
@@ -75,6 +75,19 @@ export default function PlanBuilder() {
       addExercise(selectedPlan.id, dayId, ex);
     }
     setEditingExercise(null);
+  };
+
+  const handleMoveDay = (week: number, dayId: string, dir: -1 | 1) => {
+    if (!selectedPlan) return;
+    const weekDays = selectedPlan.days
+      .filter((d) => d.week === week)
+      .sort((a, b) => a.day - b.day);
+    const idx = weekDays.findIndex((d) => d.id === dayId);
+    const target = idx + dir;
+    if (idx < 0 || target < 0 || target >= weekDays.length) return;
+    const reordered = [...weekDays];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    reorderDays(selectedPlan.id, week, reordered);
   };
 
   const handleMoveExercise = (dayId: string, exId: string, dir: -1 | 1) => {
@@ -285,11 +298,14 @@ export default function PlanBuilder() {
                   </button>
                 </div>
 
-                {days.map((dayObj) => (
+                {days.map((dayObj, dayIdx) => (
                   <DayCard
                     key={dayObj.id}
                     day={dayObj}
                     expanded={expandedDayId === dayObj.id}
+                    canMoveUp={dayIdx > 0}
+                    canMoveDown={dayIdx < days.length - 1}
+                    onMove={(dir) => handleMoveDay(week, dayObj.id, dir)}
                     onToggle={() => setExpandedDayId(expandedDayId === dayObj.id ? null : dayObj.id)}
                     onDelete={() => {
                       if (confirm(`Eliminare il giorno ${dayObj.day} della settimana ${dayObj.week}?`))
@@ -389,10 +405,13 @@ export default function PlanBuilder() {
 }
 
 function DayCard({
-  day, expanded, onToggle, onDelete, onDuplicate, onAddExercise, onEditExercise, onDeleteExercise, onMoveExercise,
+  day, expanded, canMoveUp, canMoveDown, onMove, onToggle, onDelete, onDuplicate, onAddExercise, onEditExercise, onDeleteExercise, onMoveExercise,
 }: {
   day: TrainingDay;
   expanded: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMove: (dir: -1 | 1) => void;
   onToggle: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -403,30 +422,58 @@ function DayCard({
 }) {
   return (
     <div className={`tt-card overflow-hidden transition-shadow ${expanded ? '' : ''}`}>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-[14px] py-[14px] text-left active:bg-surface-2 transition-colors bg-transparent border-none cursor-pointer"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-btn bg-accent-soft border border-accent-border text-accent font-mono font-bold flex items-center justify-center text-sm shrink-0">
-            G{day.day}
+      <div className="w-full flex items-center px-[14px] py-[14px] gap-3">
+        {/* Riordino giorno su/giù */}
+        {(canMoveUp || canMoveDown) && (
+          <div className="flex flex-col text-text-3 shrink-0">
+            <button
+              onClick={() => onMove(-1)}
+              disabled={!canMoveUp}
+              aria-label="Sposta giorno su"
+              className="disabled:opacity-25 leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(180deg)' }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => onMove(1)}
+              disabled={!canMoveDown}
+              aria-label="Sposta giorno giù"
+              className="disabled:opacity-25 leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
           </div>
-          <div>
-            <span className="text-text-1 font-display font-bold text-[15px]">
-              Giorno {day.day}
-              {day.label && <span className="text-text-2 font-medium"> · {day.label}</span>}
-            </span>
-            <p className="text-text-3 text-xs font-body mt-[1px]">
-              {day.exercises.length === 0 ? 'nessun esercizio' : `${day.exercises.length} esercizi`}
-            </p>
+        )}
+
+        <button
+          onClick={onToggle}
+          className="flex-1 min-w-0 flex items-center justify-between text-left active:opacity-80 transition-opacity bg-transparent border-none cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-btn bg-accent-soft border border-accent-border text-accent font-mono font-bold flex items-center justify-center text-sm shrink-0">
+              G{day.day}
+            </div>
+            <div className="min-w-0">
+              <span className="text-text-1 font-display font-bold text-[15px]">
+                Giorno {day.day}
+                {day.label && <span className="text-text-2 font-medium"> · {day.label}</span>}
+              </span>
+              <p className="text-text-3 text-xs font-body mt-[1px]">
+                {day.exercises.length === 0 ? 'nessun esercizio' : `${day.exercises.length} esercizi`}
+              </p>
+            </div>
           </div>
-        </div>
-        <span className={`text-text-3 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </span>
-      </button>
+          <span className={`text-text-3 shrink-0 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </span>
+        </button>
+      </div>
 
       <div className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
