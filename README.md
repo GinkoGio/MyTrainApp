@@ -12,7 +12,8 @@ App web per gestire e seguire le schede di allenamento in palestra, direttamente
 - **Sessione attiva** — interfaccia pensata per l'uso in palestra: mostra l'esercizio e la serie corrente, con pulsanti +/− per modificare reps e kg al volo
 - **Timer di pausa** — countdown automatico tra una serie e l'altra con segnale sonoro alla fine; skip disponibile in qualsiasi momento
 - **Storico sessioni** — ogni allenamento completato viene salvato con i pesi e le ripetizioni realmente eseguiti
-- **Nessun server** — tutti i dati sono salvati in `localStorage`, l'app funziona offline
+- **Import / export schede** — esporta una scheda in un file `.json` (utile anche come backup o per condividerla) e reimportala: i dati vengono validati e gli id rigenerati, così l'import diventa sempre una nuova scheda senza conflitti
+- **Nessun server** — tutti i dati sono salvati in `localStorage`, l'app funziona offline (service worker)
 
 ## Stack tecnico
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanStore } from '../store/usePlanStore';
 import { uid } from '../utils/id';
 import { buildSuggestions } from '../data/exerciseLibrary';
+import { serializePlan, parsePlan, planFileName, planSummary } from '../utils/planTransfer';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 import BottomNav from '../components/BottomNav';
 
@@ -21,6 +22,7 @@ export default function PlanBuilder() {
   const [newPlanName, setNewPlanName] = useState('');
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [editingExercise, setEditingExercise] = useState<{ dayId: string; ex: PlannedExercise } | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
 
@@ -83,6 +85,30 @@ export default function PlanBuilder() {
     const reordered = [...day.exercises];
     [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
     reorderExercises(selectedPlan.id, dayId, reordered);
+  };
+
+  const handleExportPlan = (plan: TrainingPlan) => {
+    const blob = new Blob([serializePlan(plan)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = planFileName(plan);
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permette di re-importare lo stesso file
+    if (!file) return;
+    try {
+      const plan = parsePlan(await file.text());
+      if (!confirm(`Importare "${plan.name}"?\n${planSummary(plan)}`)) return;
+      addPlan(plan);
+      setSelectedPlanId(plan.id);
+    } catch (err) {
+      alert(`Import non riuscito: ${err instanceof Error ? err.message : 'file non valido'}`);
+    }
   };
 
   return (
@@ -148,6 +174,26 @@ export default function PlanBuilder() {
               + Crea
             </button>
           </div>
+
+          {/* Import da file JSON */}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="self-start text-xs text-text-2 hover:text-accent flex items-center gap-[6px] transition-colors active:scale-95 font-display font-semibold bg-transparent border-none cursor-pointer"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Importa scheda da file
+          </button>
         </section>
 
         {!selectedPlan && plans.length === 0 && (
@@ -161,7 +207,19 @@ export default function PlanBuilder() {
             {/* Plan title + status */}
             <div className="flex items-center justify-between gap-2">
               <h2 className="tt-display text-[22px] truncate">{selectedPlan.name}</h2>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 items-center">
+                <button
+                  onClick={() => handleExportPlan(selectedPlan)}
+                  aria-label="Esporta scheda come file"
+                  className="text-xs text-text-2 hover:text-accent border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer flex items-center gap-[5px]"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Esporta
+                </button>
                 {activePlanId === selectedPlan.id ? (
                   <span className="inline-flex items-center gap-[5px] font-mono text-[11px] text-verde tracking-[0.04em]">
                     <span
