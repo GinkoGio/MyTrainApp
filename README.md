@@ -5,7 +5,10 @@ App web per gestire e seguire le schede di allenamento in palestra, direttamente
 ## Funzionalità
 
 - **Gestione schede** — crea più schede di allenamento, ognuna organizzata per settimane e giorni (Settimana 1 Giorno 1, Settimana 1 Giorno 2, ecc.)
-- **Configurazione esercizi** — per ogni esercizio definisci nome, numero di serie, ripetizioni e peso per ciascuna serie, e secondi di pausa tra le serie
+- **Editor esercizio veloce** — imposta *serie × ripetizioni × peso* in un colpo solo con steppers `+/−`; passa a "serie variabili" solo quando ti servono carichi diversi per serie (piramidali, drop set)
+- **Suggerimenti nomi esercizi** — autocomplete con una libreria di esercizi comuni più i nomi che hai già usato nelle tue schede
+- **Duplica giorno e settimana** — copia un giorno o un'intera settimana per ripeterne la struttura cambiando solo i pesi: ideale per i programmi multi-settimana
+- **Riordino esercizi** — sposta su e giù gli esercizi dentro un giorno
 - **Sessione attiva** — interfaccia pensata per l'uso in palestra: mostra l'esercizio e la serie corrente, con pulsanti +/− per modificare reps e kg al volo
 - **Timer di pausa** — countdown automatico tra una serie e l'altra con segnale sonoro alla fine; skip disponibile in qualsiasi momento
 - **Storico sessioni** — ogni allenamento completato viene salvato con i pesi e le ripetizioni realmente eseguiti
@@ -25,15 +28,17 @@ App web per gestire e seguire le schede di allenamento in palestra, direttamente
 ```
 src/
 ├── pages/
-│   ├── Home.tsx          # Dashboard: prossima sessione da fare
-│   ├── PlanBuilder.tsx   # Editor schede, giorni ed esercizi
-│   ├── ActiveWorkout.tsx # Sessione attiva con timer
-│   └── History.tsx       # Storico allenamenti
+│   ├── Home.tsx           # Dashboard: prossima sessione da fare
+│   ├── PlanBuilder.tsx    # Editor schede, giorni ed esercizi
+│   ├── ActiveWorkout.tsx  # Sessione attiva con timer
+│   └── History.tsx        # Storico allenamenti
 ├── store/
-│   ├── usePlanStore.ts   # Schede e giorni (localStorage: "train-plans")
+│   ├── usePlanStore.ts    # Schede e giorni (localStorage: "train-plans")
 │   └── useSessionStore.ts # Sessioni attive e log (localStorage: "train-sessions")
+├── data/
+│   └── exerciseLibrary.ts # Libreria nomi esercizi per l'autocomplete
 └── types/
-    └── index.ts          # Tipi TypeScript condivisi
+    └── index.ts           # Tipi TypeScript condivisi
 ```
 
 ## Avvio
