@@ -181,6 +181,16 @@ export const usePlanStore = create<PlanStore>()(
           ),
         })),
     }),
-    { name: 'train-plans' }
+    {
+      name: 'train-plans',
+      version: 1,
+      // Punto di aggancio per future migrazioni dello schema dei dati persistiti.
+      // Se la forma di TrainingPlan cambia, incrementa `version` e trasforma qui
+      // lo stato salvato dalle versioni precedenti invece di rompere l'app.
+      migrate: (persisted, fromVersion) => {
+        void fromVersion;
+        return persisted as { plans: TrainingPlan[]; activePlanId: string | null };
+      },
+    }
   )
 );

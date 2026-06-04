@@ -58,6 +58,17 @@ npm run build
 
 L'output è nella cartella `dist/` e può essere hostato su qualsiasi CDN statico (Vercel, Netlify, GitHub Pages, ecc.).
 
+## Test
+
+```bash
+npm test          # esegue la suite una volta
+npm run test:watch # modalità watch
+```
+
+I test (Vitest) coprono la logica core: avanzamento della sessione e timer
+di pausa (`useSessionStore`), duplicazione di giorni/settimane (`usePlanStore`)
+e l'autocomplete degli esercizi.
+
 ## Flusso di utilizzo
 
 1. **Crea una scheda** — vai in *Schede*, dai un nome alla scheda e aggiungi i giorni

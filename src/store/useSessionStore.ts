@@ -132,6 +132,16 @@ export const useSessionStore = create<SessionStore>()(
       deleteLog: (logId) =>
         set((s) => ({ logs: s.logs.filter((l) => l.id !== logId) })),
     }),
-    { name: 'train-sessions' }
+    {
+      name: 'train-sessions',
+      version: 1,
+      // Punto di aggancio per future migrazioni dello schema dei dati persistiti.
+      // Se la forma di SessionLog/ActiveSession cambia, incrementa `version` e
+      // trasforma qui lo stato salvato invece di rompere l'app.
+      migrate: (persisted, fromVersion) => {
+        void fromVersion;
+        return persisted as { logs: SessionLog[]; active: ActiveSession | null };
+      },
+    }
   )
 );
