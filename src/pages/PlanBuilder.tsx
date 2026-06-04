@@ -4,6 +4,7 @@ import { usePlanStore } from '../store/usePlanStore';
 import { uid } from '../utils/id';
 import { buildSuggestions } from '../data/exerciseLibrary';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
+import BottomNav from '../components/BottomNav';
 
 const allSetsEqual = (sets: SetDefinition[]) =>
   sets.length > 0 && sets.every((s) => s.reps === sets[0].reps && s.weight === sets[0].weight);
@@ -23,14 +24,12 @@ export default function PlanBuilder() {
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
 
-  // All exercise names already used across every plan — feeds the autocomplete.
   const usedNames = useMemo(
     () => plans.flatMap((p) => p.days.flatMap((d) => d.exercises.map((e) => e.name))),
     [plans]
   );
   const suggestions = useMemo(() => buildSuggestions(usedNames), [usedNames]);
 
-  // Group the selected plan's days by week.
   const weeks = useMemo(() => {
     if (!selectedPlan) return [];
     const byWeek = new Map<number, TrainingDay[]>();
@@ -89,18 +88,21 @@ export default function PlanBuilder() {
   return (
     <div className="max-w-lg mx-auto min-h-screen flex flex-col">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-20 border-b border-border px-4 py-3 flex items-center gap-3"
+        style={{ background: 'linear-gradient(180deg, rgba(22,18,16,0.96), rgba(22,18,16,0.78))', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
         <button
           onClick={() => navigate('/')}
-          className="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors active:scale-90"
+          className="w-9 h-9 flex items-center justify-center rounded-full text-text-2 hover:text-text-1 hover:bg-surface-2 transition-colors active:scale-90 border-none bg-transparent cursor-pointer"
         >
-          ←
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
         </button>
-        <h1 className="text-xl font-bold text-white">Le tue schede</h1>
+        <h1 className="tt-display text-[22px]">Le tue schede</h1>
       </header>
 
-      <div className="p-4 pb-28 flex flex-col gap-5">
-        {/* Plan selector + new plan */}
+      <div className="p-4 pb-32 flex flex-col gap-5">
+        {/* Plan chips + new plan */}
         <section className="flex flex-col gap-3">
           {plans.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -108,14 +110,22 @@ export default function PlanBuilder() {
                 <button
                   key={p.id}
                   onClick={() => setSelectedPlanId(p.id)}
-                  className={`shrink-0 px-3.5 py-2 rounded-xl text-sm font-medium transition-all active:scale-95 ${
+                  className={`shrink-0 px-[14px] py-2 rounded-chip text-[13px] font-display font-semibold transition-all active:scale-95 flex items-center gap-[6px] border cursor-pointer ${
                     selectedPlanId === p.id
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-accent text-on-accent border-transparent'
+                      : 'bg-surface-2 text-text-2 border-border hover:border-accent-border'
                   }`}
                 >
                   {p.name}
-                  {activePlanId === p.id && <span className="ml-1.5 text-emerald-400">●</span>}
+                  {activePlanId === p.id && (
+                    <span
+                      className="w-[7px] h-[7px] rounded-full shrink-0"
+                      style={{
+                        background: selectedPlanId === p.id ? 'var(--color-on-accent)' : 'var(--color-verde)',
+                        boxShadow: selectedPlanId === p.id ? 'none' : '0 0 8px #43b074',
+                      }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -127,12 +137,12 @@ export default function PlanBuilder() {
               onChange={(e) => setNewPlanName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreatePlan()}
               placeholder="Nome nuova scheda…"
-              className="flex-1 bg-slate-800 text-white rounded-xl px-3.5 py-2.5 text-sm outline-none border border-slate-700 focus:border-indigo-500 transition-colors"
+              className="flex-1 bg-surface text-text-1 rounded-input px-3.5 py-2.5 text-sm outline-none border border-border focus:border-accent transition-colors font-body placeholder:text-text-3"
             />
             <button
               onClick={handleCreatePlan}
               disabled={!newPlanName.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 rounded-xl text-sm font-semibold transition-all active:scale-95"
+              className="bg-accent-soft hover:bg-accent-soft border border-accent-border text-accent px-4 rounded-input text-sm font-display font-bold transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
             >
               + Crea
             </button>
@@ -140,22 +150,29 @@ export default function PlanBuilder() {
         </section>
 
         {!selectedPlan && plans.length === 0 && (
-          <div className="text-center py-16 text-slate-500">
-            <div className="text-5xl mb-3">📋</div>
+          <div className="text-center py-16 text-text-3 font-body">
             <p>Crea la tua prima scheda per iniziare.</p>
           </div>
         )}
 
         {selectedPlan && (
           <section className="flex flex-col gap-4">
-            {/* Plan title + actions */}
+            {/* Plan title + status */}
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-white truncate">{selectedPlan.name}</h2>
+              <h2 className="tt-display text-[22px] truncate">{selectedPlan.name}</h2>
               <div className="flex gap-2 shrink-0">
-                {activePlanId !== selectedPlan.id && (
+                {activePlanId === selectedPlan.id ? (
+                  <span className="inline-flex items-center gap-[5px] font-mono text-[11px] text-verde tracking-[0.04em]">
+                    <span
+                      className="w-[7px] h-[7px] rounded-full bg-verde"
+                      style={{ boxShadow: '0 0 8px #43b074' }}
+                    />
+                    ATTIVA
+                  </span>
+                ) : (
                   <button
                     onClick={() => setActivePlan(selectedPlan.id)}
-                    className="text-xs text-emerald-400 hover:bg-emerald-950 border border-emerald-800 px-2.5 py-1.5 rounded-lg transition-colors active:scale-95"
+                    className="text-xs text-text-2 border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer"
                   >
                     Rendi attiva
                   </button>
@@ -166,7 +183,7 @@ export default function PlanBuilder() {
                     deletePlan(selectedPlan.id);
                     setSelectedPlanId(plans.find((p) => p.id !== selectedPlan.id)?.id ?? null);
                   }}
-                  className="text-xs text-red-400 hover:bg-red-950 border border-red-900 px-2.5 py-1.5 rounded-lg transition-colors active:scale-95"
+                  className="text-xs text-danger border border-danger/30 hover:bg-danger/10 px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold cursor-pointer"
                 >
                   Elimina
                 </button>
@@ -174,21 +191,24 @@ export default function PlanBuilder() {
             </div>
 
             {selectedPlan.days.length === 0 && (
-              <p className="text-slate-500 text-sm text-center py-4">
-                Nessun giorno. Aggiungine uno qui sotto 👇
+              <p className="text-text-3 text-sm text-center py-4 font-body">
+                Nessun giorno. Aggiungine uno qui sotto.
               </p>
             )}
 
             {/* Weeks */}
             {weeks.map(({ week, days }) => (
-              <div key={week} className="flex flex-col gap-2.5">
+              <div key={week} className="flex flex-col gap-[10px]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span
+                    className="tt-eyebrow"
+                    style={{ color: 'var(--color-text-3)' }}
+                  >
                     Settimana {week}
-                  </h3>
+                  </span>
                   <button
                     onClick={() => duplicateWeek(selectedPlan.id, week)}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors active:scale-95"
+                    className="text-xs text-accent hover:text-accent-hover flex items-center gap-1 transition-colors active:scale-95 font-display font-semibold bg-transparent border-none cursor-pointer"
                   >
                     ⧉ Duplica settimana
                   </button>
@@ -224,9 +244,10 @@ export default function PlanBuilder() {
               </div>
             ))}
 
+            {/* Add day */}
             <button
               onClick={handleAddDay}
-              className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-dashed border-slate-600 rounded-xl py-3.5 text-sm font-medium transition-all active:scale-[0.98]"
+              className="w-full text-accent border border-dashed border-accent-border rounded-input py-[14px] text-sm font-display font-semibold transition-all active:scale-[0.98] hover:bg-accent-soft flex items-center justify-center gap-[6px] cursor-pointer bg-transparent"
             >
               + Aggiungi giorno
             </button>
@@ -243,6 +264,8 @@ export default function PlanBuilder() {
           onCancel={() => setEditingExercise(null)}
         />
       )}
+
+      <BottomNav />
     </div>
   );
 }
@@ -261,73 +284,97 @@ function DayCard({
   onMoveExercise: (id: string, dir: -1 | 1) => void;
 }) {
   return (
-    <div className={`bg-slate-800 rounded-2xl overflow-hidden transition-shadow ${expanded ? 'shadow-lg shadow-black/30' : ''}`}>
-      <button onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3.5 text-left active:bg-slate-700/40 transition-colors">
+    <div className={`tt-card overflow-hidden transition-shadow ${expanded ? '' : ''}`}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-[14px] py-[14px] text-left active:bg-surface-2 transition-colors bg-transparent border-none cursor-pointer"
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-300 font-bold flex items-center justify-center text-sm">
+          <div className="w-10 h-10 rounded-btn bg-accent-soft border border-accent-border text-accent font-mono font-bold flex items-center justify-center text-sm shrink-0">
             G{day.day}
           </div>
           <div>
-            <span className="text-white font-semibold">Giorno {day.day}</span>
-            {day.label && <span className="text-slate-400 ml-2 text-sm">{day.label}</span>}
-            <p className="text-slate-500 text-xs">
+            <span className="text-text-1 font-display font-bold text-[15px]">
+              Giorno {day.day}
+              {day.label && <span className="text-text-2 font-medium"> · {day.label}</span>}
+            </span>
+            <p className="text-text-3 text-xs font-body mt-[1px]">
               {day.exercises.length === 0 ? 'nessun esercizio' : `${day.exercises.length} esercizi`}
             </p>
           </div>
         </div>
-        <span className={`text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>▾</span>
+        <span className={`text-text-3 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </span>
       </button>
 
-      {/* Smooth height animation via grid-rows trick */}
       <div className={`grid transition-all duration-300 ease-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-4 pb-4 flex flex-col gap-2">
+          <div className="px-[14px] pb-[14px] flex flex-col gap-2">
             {day.exercises.map((ex, idx) => (
-              <div key={ex.id} className="bg-slate-700/40 rounded-xl p-3 flex justify-between items-center gap-2">
-                {/* Reorder arrows */}
-                <div className="flex flex-col">
+              <div key={ex.id} className="bg-surface-inset rounded-input p-[11px_12px] flex items-center gap-[10px]">
+                <div className="flex flex-col text-text-3">
                   <button
                     onClick={() => onMoveExercise(ex.id, -1)}
                     disabled={idx === 0}
-                    className="text-slate-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5 transition-colors"
+                    className="disabled:opacity-25 text-xs leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
                   >
-                    ▲
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(180deg)' }}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                   </button>
                   <button
                     onClick={() => onMoveExercise(ex.id, 1)}
                     disabled={idx === day.exercises.length - 1}
-                    className="text-slate-500 hover:text-white disabled:opacity-20 text-xs leading-none p-0.5 transition-colors"
+                    className="disabled:opacity-25 text-xs leading-none p-0.5 transition-colors hover:text-text-1 bg-transparent border-none cursor-pointer"
                   >
-                    ▼
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                   </button>
                 </div>
 
-                <button onClick={() => onEditExercise(ex)} className="flex-1 text-left min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{ex.name || '—'}</p>
-                  <p className="text-slate-400 text-xs mt-0.5">
-                    {ex.sets.length} × {ex.sets[0]?.reps} reps · {ex.sets[0]?.weight}kg · pausa {ex.restSeconds}s
-                    {!allSetsEqual(ex.sets) && <span className="text-amber-400/80 ml-1">· variabile</span>}
+                <button onClick={() => onEditExercise(ex)} className="flex-1 text-left min-w-0 bg-transparent border-none cursor-pointer p-0">
+                  <p className="text-text-1 font-body font-semibold text-[13.5px] truncate">{ex.name || '—'}</p>
+                  <p className="font-mono text-[11px] text-text-2 mt-[2px]">
+                    {ex.sets.length}×{ex.sets[0]?.reps} · {ex.sets[0]?.weight}kg · pausa {ex.restSeconds}s
+                    {!allSetsEqual(ex.sets) && (
+                      <span className="text-accent ml-[5px]">· var.</span>
+                    )}
                   </p>
                 </button>
 
-                <button onClick={() => onDeleteExercise(ex.id)} className="text-red-500/70 hover:text-red-400 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-950/50 transition-colors">
-                  ✕
+                <button
+                  onClick={() => onDeleteExercise(ex.id)}
+                  className="text-text-3 hover:text-danger w-7 h-7 flex items-center justify-center rounded-input hover:bg-danger/10 transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
                 </button>
               </div>
             ))}
 
             <button
               onClick={onAddExercise}
-              className="text-sm text-indigo-300 hover:text-white hover:bg-indigo-600/20 border border-dashed border-indigo-700/60 rounded-xl py-2.5 transition-all active:scale-[0.98] font-medium"
+              className="text-sm text-accent border border-dashed border-accent-border rounded-input py-[10px] transition-all active:scale-[0.98] font-display font-semibold hover:bg-accent-soft flex items-center justify-center gap-[6px] cursor-pointer bg-transparent"
             >
               + Aggiungi esercizio
             </button>
 
             <div className="flex justify-between mt-1 pt-1">
-              <button onClick={onDuplicate} className="text-xs text-slate-400 hover:text-white transition-colors active:scale-95">
+              <button
+                onClick={onDuplicate}
+                className="text-xs text-text-2 hover:text-text-1 transition-colors active:scale-95 font-display font-semibold flex items-center gap-1 bg-transparent border-none cursor-pointer"
+              >
                 ⧉ Duplica giorno
               </button>
-              <button onClick={onDelete} className="text-xs text-red-500/70 hover:text-red-400 transition-colors active:scale-95">
+              <button
+                onClick={onDelete}
+                className="text-xs text-danger hover:text-danger transition-colors active:scale-95 font-display font-semibold bg-transparent border-none cursor-pointer"
+              >
                 Elimina giorno
               </button>
             </div>
@@ -354,12 +401,10 @@ function ExerciseEditor({
   const [restSeconds, setRestSeconds] = useState(exercise.restSeconds);
   const [mode, setMode] = useState<'quick' | 'advanced'>(startAdvanced ? 'advanced' : 'quick');
 
-  // Quick mode state
   const [qSets, setQSets] = useState(exercise.sets.length || 3);
   const [qReps, setQReps] = useState(exercise.sets[0]?.reps ?? 10);
   const [qWeight, setQWeight] = useState(exercise.sets[0]?.weight ?? 20);
 
-  // Advanced mode state
   const [sets, setSets] = useState<SetDefinition[]>(exercise.sets);
 
   const [showSug, setShowSug] = useState(false);
@@ -402,19 +447,36 @@ function ExerciseEditor({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-end justify-center z-50 animate-[fadeIn_0.15s_ease-out]" onClick={onCancel}>
+    <div
+      className="fixed inset-0 flex items-end justify-center z-50 animate-[fadeIn_0.15s_ease-out]"
+      style={{ background: 'rgba(10,8,7,0.55)', backdropFilter: 'blur(3px)' }}
+      onClick={onCancel}
+    >
       <div
-        className="bg-slate-900 w-full max-w-lg rounded-t-3xl p-6 flex flex-col gap-5 max-h-[92vh] overflow-y-auto animate-[slideUp_0.25s_ease-out]"
+        className="w-full max-w-lg rounded-t-[26px] p-[22px_20px_34px] flex flex-col gap-[18px] max-h-[88vh] overflow-y-auto animate-[slideUp_0.25s_ease-out] border border-border border-b-0"
+        style={{ background: '#1f1814', boxShadow: '0 -20px 60px rgba(0,0,0,0.3)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-white font-bold text-lg">{isNew ? 'Nuovo esercizio' : 'Modifica esercizio'}</h3>
-          <button onClick={onCancel} className="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 transition-colors">✕</button>
+          <h3 className="tt-display text-[22px]">{isNew ? 'Nuovo esercizio' : 'Modifica esercizio'}</h3>
+          <button
+            onClick={onCancel}
+            className="text-text-3 hover:text-text-1 w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-2 transition-colors bg-transparent border-none cursor-pointer"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
         {/* Name with suggestions */}
         <div className="relative">
-          <label className="text-slate-400 text-xs mb-1.5 block">Esercizio</label>
+          <span
+            className="tt-eyebrow block mb-[7px]"
+            style={{ color: 'var(--color-text-3)' }}
+          >
+            Esercizio
+          </span>
           <input
             ref={nameRef}
             value={name}
@@ -422,15 +484,15 @@ function ExerciseEditor({
             onFocus={() => setShowSug(true)}
             onBlur={() => setTimeout(() => setShowSug(false), 150)}
             placeholder="es. Squat, Panca piana…"
-            className="w-full bg-slate-800 text-white rounded-xl px-3.5 py-2.5 outline-none border border-slate-700 focus:border-indigo-500 transition-colors"
+            className="w-full bg-surface text-text-1 rounded-input px-[15px] py-[13px] outline-none border border-border focus:border-accent transition-colors font-body text-[15.5px] placeholder:text-text-3"
           />
           {showSug && filteredSug.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-10 overflow-hidden max-h-52 overflow-y-auto">
+            <div className="absolute left-0 right-0 top-full mt-[6px] bg-surface border border-border rounded-input shadow-card z-10 overflow-hidden max-h-52 overflow-y-auto">
               {filteredSug.map((s) => (
                 <button
                   key={s}
                   onMouseDown={(e) => { e.preventDefault(); setName(s); setShowSug(false); }}
-                  className="w-full text-left px-3.5 py-2 text-sm text-slate-200 hover:bg-indigo-600 transition-colors"
+                  className="w-full text-left px-[15px] py-[11px] text-sm text-text-1 hover:bg-accent-soft hover:text-accent transition-colors border-b border-border last:border-b-0 font-body bg-transparent cursor-pointer"
                 >
                   {s}
                 </button>
@@ -440,16 +502,20 @@ function ExerciseEditor({
         </div>
 
         {/* Mode toggle */}
-        <div className="flex bg-slate-800 rounded-xl p-1 text-sm">
+        <div className="flex bg-surface-inset rounded-input p-1 gap-1">
           <button
             onClick={mode === 'advanced' ? switchToQuick : undefined}
-            className={`flex-1 py-2 rounded-lg font-medium transition-all ${mode === 'quick' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
+            className={`flex-1 py-[10px] rounded-[4px] font-display font-bold text-[13.5px] transition-all border-none cursor-pointer ${
+              mode === 'quick' ? 'bg-accent text-on-accent' : 'text-text-2 bg-transparent'
+            }`}
           >
             Serie uguali
           </button>
           <button
             onClick={mode === 'quick' ? switchToAdvanced : undefined}
-            className={`flex-1 py-2 rounded-lg font-medium transition-all ${mode === 'advanced' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}
+            className={`flex-1 py-[10px] rounded-[4px] font-display font-bold text-[13.5px] transition-all border-none cursor-pointer ${
+              mode === 'advanced' ? 'bg-accent text-on-accent' : 'text-text-2 bg-transparent'
+            }`}
           >
             Serie variabili
           </button>
@@ -468,25 +534,50 @@ function ExerciseEditor({
         {mode === 'advanced' && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-400 text-xs">Configura ogni serie</span>
-              <button onClick={addAdvSet} className="text-xs text-indigo-400 hover:text-indigo-300">+ serie</button>
+              <span
+                className="tt-eyebrow"
+                style={{ color: 'var(--color-text-3)' }}
+              >
+                Configura ogni serie
+              </span>
+              <button
+                onClick={addAdvSet}
+                className="text-xs text-accent hover:text-accent-hover font-display font-semibold bg-transparent border-none cursor-pointer"
+              >
+                + serie
+              </button>
             </div>
             <div className="flex flex-col gap-2">
               {sets.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-slate-800/60 rounded-lg p-2">
-                  <span className="text-slate-500 text-xs w-6 text-center font-bold">{idx + 1}</span>
+                <div key={idx} className="flex items-center gap-2 bg-surface-inset rounded-input p-2">
+                  <span className="text-text-3 font-mono text-xs w-6 text-center font-bold">{idx + 1}</span>
                   <label className="flex items-center gap-1.5 flex-1">
-                    <span className="text-slate-500 text-xs">reps</span>
-                    <input type="number" value={s.reps} onChange={(e) => updateAdvSet(idx, 'reps', Number(e.target.value))}
-                      className="bg-slate-700 text-white rounded-lg px-2 py-1.5 w-full text-sm outline-none border border-transparent focus:border-indigo-500" />
+                    <span className="text-text-3 text-xs font-body">reps</span>
+                    <input
+                      type="number"
+                      value={s.reps}
+                      onChange={(e) => updateAdvSet(idx, 'reps', Number(e.target.value))}
+                      className="bg-surface text-text-1 rounded-input px-2 py-1.5 w-full text-sm outline-none border border-border focus:border-accent font-mono"
+                    />
                   </label>
                   <label className="flex items-center gap-1.5 flex-1">
-                    <span className="text-slate-500 text-xs">kg</span>
-                    <input type="number" value={s.weight} onChange={(e) => updateAdvSet(idx, 'weight', Number(e.target.value))}
-                      className="bg-slate-700 text-white rounded-lg px-2 py-1.5 w-full text-sm outline-none border border-transparent focus:border-indigo-500" />
+                    <span className="text-text-3 text-xs font-body">kg</span>
+                    <input
+                      type="number"
+                      value={s.weight}
+                      onChange={(e) => updateAdvSet(idx, 'weight', Number(e.target.value))}
+                      className="bg-surface text-text-1 rounded-input px-2 py-1.5 w-full text-sm outline-none border border-border focus:border-accent font-mono"
+                    />
                   </label>
                   {sets.length > 1 && (
-                    <button onClick={() => removeAdvSet(idx)} className="text-red-500/70 hover:text-red-400 w-7 h-7 rounded-lg hover:bg-red-950/50">✕</button>
+                    <button
+                      onClick={() => removeAdvSet(idx)}
+                      className="text-text-3 hover:text-danger w-7 h-7 rounded-input hover:bg-danger/10 flex items-center justify-center bg-transparent border-none cursor-pointer"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
                   )}
                 </div>
               ))}
@@ -495,16 +586,25 @@ function ExerciseEditor({
         )}
 
         {/* Rest */}
-        <Stepper label="Pausa tra serie (secondi)" value={restSeconds} step={15} onChange={(v) => setRestSeconds(Math.max(0, v))} wide />
+        <Stepper
+          label="Pausa tra serie (secondi)"
+          value={restSeconds}
+          step={15}
+          onChange={(v) => setRestSeconds(Math.max(0, v))}
+          wide
+        />
 
         <div className="flex gap-3 pt-1">
-          <button onClick={onCancel} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-medium transition-all active:scale-[0.98]">
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-surface-2 hover:bg-surface border border-border text-text-2 py-[14px] rounded-btn font-display font-semibold transition-all active:scale-[0.98] cursor-pointer"
+          >
             Annulla
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white py-3 rounded-xl font-semibold transition-all active:scale-[0.98]"
+            className="flex-1 tt-btn-primary py-[14px] text-[15px] disabled:opacity-40"
           >
             Salva
           </button>
@@ -525,20 +625,20 @@ function Stepper({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-slate-400 text-xs">{label}</span>
-      <div className={`flex items-center bg-slate-800 rounded-xl ${wide ? 'justify-between px-2' : 'justify-center'} py-1.5 gap-1`}>
+      <span className="text-text-3 text-xs font-body">{label}</span>
+      <div className={`flex items-center bg-surface rounded-input border border-border ${wide ? 'justify-between px-3' : 'justify-center'} py-2 gap-1`}>
         <button
           onClick={() => onChange(value - step)}
-          className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0"
+          className="w-8 h-8 rounded-full bg-surface-inset border border-border text-text-1 font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0 hover:border-accent-border cursor-pointer"
         >
           −
         </button>
-        <span className="text-white font-bold text-lg tabular-nums flex-1 text-center min-w-10">
+        <span className="font-mono font-bold text-[19px] tabular-nums flex-1 text-center text-text-1 min-w-10">
           {value % 1 === 0 ? value : value.toFixed(1)}
         </span>
         <button
           onClick={() => onChange(value + step)}
-          className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0"
+          className="w-8 h-8 rounded-full bg-surface-inset border border-border text-text-1 font-bold flex items-center justify-center transition-colors active:scale-90 shrink-0 hover:border-accent-border cursor-pointer"
         >
           +
         </button>
