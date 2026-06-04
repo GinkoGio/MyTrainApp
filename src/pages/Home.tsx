@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlanStore } from '../store/usePlanStore';
 import { useSessionStore } from '../store/useSessionStore';
@@ -45,6 +46,31 @@ function MiniMeta({ value, label }: { value: number; label: string }) {
   );
 }
 
+function DaySelect({
+  value, options, onChange, ariaLabel,
+}: {
+  value: string | number;
+  options: { value: string | number; label: string }[];
+  onChange: (v: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <select
+      value={value}
+      aria-label={ariaLabel}
+      onChange={(e) => onChange(e.target.value)}
+      className="bg-surface-2 border border-border rounded-btn text-text-1 font-mono text-[11.5px] px-2 py-[5px] outline-none focus:border-accent cursor-pointer max-w-[120px]"
+      style={{ background: '#2a211c' }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value} className="bg-bg text-text-1">
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function StatCell({ value, label }: { value: string | number; label: string }) {
   return (
     <div className="tt-card p-[14px_12px] flex flex-col gap-[5px]" style={{ boxShadow: 'none' }}>
@@ -63,19 +89,45 @@ export default function Home() {
 
   const nextDay = nextDayFor(activePlan, logs);
 
+  // Giorno scelto manualmente dall'utente; se assente o non più valido si usa
+  // il prossimo suggerito automaticamente.
+  const [overrideDayId, setOverrideDayId] = useState<string | null>(null);
+  const startDay =
+    (overrideDayId && activePlan?.days.find((d) => d.id === overrideDayId)) || nextDay;
+
+  // Settimane disponibili e giorni della settimana selezionata, per i menù.
+  const weekNumbers = useMemo(
+    () => [...new Set(activePlan?.days.map((d) => d.week) ?? [])].sort((a, b) => a - b),
+    [activePlan]
+  );
+  const daysOfStartWeek = useMemo(
+    () =>
+      (activePlan?.days ?? [])
+        .filter((d) => d.week === startDay?.week)
+        .sort((a, b) => a.day - b.day),
+    [activePlan, startDay?.week]
+  );
+
+  const handleSelectWeek = (week: number) => {
+    const firstDay = (activePlan?.days ?? [])
+      .filter((d) => d.week === week)
+      .sort((a, b) => a.day - b.day)[0];
+    if (firstDay) setOverrideDayId(firstDay.id);
+  };
+
   const handleStartWorkout = () => {
-    if (!nextDay || !activePlan) return;
+    if (!startDay || !activePlan) return;
 
     const sessionLog: SessionLog = {
       id: uid(),
       planId: activePlan.id,
       planName: activePlan.name,
-      dayId: nextDay.id,
-      week: nextDay.week,
-      day: nextDay.day,
+      dayId: startDay.id,
+      week: startDay.week,
+      day: startDay.day,
       date: new Date().toISOString(),
       completed: false,
-      exercises: nextDay.exercises.map((ex): PerformedExercise => ({
+      exercises: startDay.exercises.map((ex): PerformedExercise => ({
         exerciseId: ex.id,
         name: ex.name,
         restSeconds: ex.restSeconds,
@@ -124,13 +176,15 @@ export default function Home() {
       <div className="flex flex-col gap-[22px] mt-8">
         {/* Hero eyebrow + title */}
         <div>
-          <span className="tt-eyebrow">Prossima sessione</span>
+          <span className="tt-eyebrow">
+            {overrideDayId ? 'Sessione scelta' : 'Prossima sessione'}
+          </span>
           <div className="tt-display text-[33px] mt-[9px]">
-            {nextDay ? (
+            {startDay ? (
               <>
-                Giorno {nextDay.day}
-                {nextDay.label && (
-                  <> · <span className="text-accent">{nextDay.label}</span></>
+                Giorno {startDay.day}
+                {startDay.label && (
+                  <> · <span className="text-accent">{startDay.label}</span></>
                 )}
               </>
             ) : (
@@ -139,18 +193,33 @@ export default function Home() {
           </div>
         </div>
 
-        {nextDay && activePlan ? (
+        {startDay && activePlan ? (
           <div className="tt-card p-[18px] flex flex-col gap-[15px] relative">
             <CornerTicks />
-            <div className="flex justify-between items-baseline">
-              <span className="font-body font-semibold text-[13.5px] text-text-2">{activePlan.name}</span>
-              <span className="font-mono text-[11.5px] text-text-3 tracking-[0.04em]">
-                SETT. {nextDay.week}
-              </span>
+            <div className="flex justify-between items-center gap-2">
+              <span className="font-body font-semibold text-[13.5px] text-text-2 truncate">{activePlan.name}</span>
+              {/* Selettore settimana / giorno */}
+              <div className="flex gap-[6px] shrink-0">
+                <DaySelect
+                  value={startDay.week}
+                  ariaLabel="Settimana"
+                  onChange={(v) => handleSelectWeek(Number(v))}
+                  options={weekNumbers.map((w) => ({ value: w, label: `Sett. ${w}` }))}
+                />
+                <DaySelect
+                  value={startDay.id}
+                  ariaLabel="Giorno"
+                  onChange={(v) => setOverrideDayId(String(v))}
+                  options={daysOfStartWeek.map((d) => ({
+                    value: d.id,
+                    label: d.label ? `G${d.day} · ${d.label}` : `Giorno ${d.day}`,
+                  }))}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-[9px]">
-              {nextDay.exercises.map((ex, i) => (
+              {startDay.exercises.map((ex, i) => (
                 <div key={ex.id} className="flex items-center gap-[11px]">
                   <span className="font-mono text-[11px] text-text-3 w-[18px] shrink-0">
                     {String(i + 1).padStart(2, '0')}
@@ -169,9 +238,9 @@ export default function Home() {
 
             <div className="flex items-center justify-between gap-3">
               <div className="flex gap-4">
-                <MiniMeta value={nextDay.exercises.length} label="esercizi" />
+                <MiniMeta value={startDay.exercises.length} label="esercizi" />
                 <MiniMeta
-                  value={nextDay.exercises.reduce((a, e) => a + e.sets.length, 0)}
+                  value={startDay.exercises.reduce((a, e) => a + e.sets.length, 0)}
                   label="serie"
                 />
               </div>
