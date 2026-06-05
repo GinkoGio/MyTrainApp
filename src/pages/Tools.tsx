@@ -96,9 +96,10 @@ export default function Tools() {
         <p className="font-body text-[12px] text-text-3 -mt-2 leading-relaxed">
           Suggerimenti: <span className="text-text-2">peso</span> e <span className="text-text-2">reps</span> accettano
           testo (es. <span className="font-mono">max</span>, <span className="font-mono">1/2 peso max</span>).
-          Serie variabili: usa gruppi separati da <span className="font-mono">-</span>, es.
-          serie <span className="font-mono">2-1-1</span>, reps <span className="font-mono">8-7-7</span>,
-          peso <span className="font-mono">12-11-9</span>.
+          Reps/peso diversi per serie: tanti valori quante le serie, es. serie
+          <span className="font-mono"> 4</span>, reps <span className="font-mono">8-7-7-7</span>.
+          Oppure a gruppi: serie <span className="font-mono">2-1-1</span>,
+          reps <span className="font-mono">8-7-7</span>, peso <span className="font-mono">12-11-9</span>.
         </p>
 
         <textarea

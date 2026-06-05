@@ -120,6 +120,31 @@ Gio,1,1,Trazioni,2-1,max-8,1/2 peso max-50`;
     expect(sets[2]).toMatchObject({ reps: 8, weight: 50 });
   });
 
+  it('serie singola con lista reps di pari lunghezza → reps per serie', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Panca,4,8-7-7-7,50`;
+    const sets = parsePlansCsv(csv)[0].days[0].exercises[0].sets;
+    expect(sets).toHaveLength(4);
+    expect(sets.map((s) => s.reps)).toEqual([8, 7, 7, 7]);
+    expect(sets.map((s) => s.weight)).toEqual([50, 50, 50, 50]);
+  });
+
+  it('serie singola con liste reps e peso per serie', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Squat,3,5-5-3,60-65-70`;
+    const sets = parsePlansCsv(csv)[0].days[0].exercises[0].sets;
+    expect(sets.map((s) => s.reps)).toEqual([5, 5, 3]);
+    expect(sets.map((s) => s.weight)).toEqual([60, 65, 70]);
+  });
+
+  it('serie singola con lista di lunghezza diversa resta una nota (range "8-12")', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Panca,4,8-12,40`;
+    const sets = parsePlansCsv(csv)[0].days[0].exercises[0].sets;
+    expect(sets).toHaveLength(4);
+    expect(sets.every((s) => s.repsNote === '8-12' && s.reps === 0)).toBe(true);
+  });
+
   it('errore se i gruppi di serie/reps/peso non combaciano', () => {
     const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
 Gio,1,1,Panca,2-1-1,8-7,12-11-9`;

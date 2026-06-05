@@ -84,62 +84,90 @@ function toInt(raw: string, delim: string, field: string, rowNum: number): numbe
   return n;
 }
 
-// Il peso può essere un numero (kg) oppure un'indicazione testuale libera
-// (es. "max", "1/2 peso max"): in quel caso il carico resta 0 e il testo
-// diventa una nota mostrata al posto dei kg.
-function parseWeightCell(raw: string, delim: string, rowNum: number): { weight: number; weightNote?: string } {
-  const s = raw.trim();
-  if (s === '') throw new Error(`Riga ${rowNum}: "peso" mancante.`);
-  const n = Number(delim !== ',' ? s.replace(',', '.') : s);
-  if (Number.isFinite(n)) return { weight: n };
-  return { weight: 0, weightNote: s };
-}
+// Valore di reps/peso: un numero, oppure un'indicazione testuale libera
+// (es. "max", "1/2 peso max") con value 0 e una nota mostrata al suo posto.
+interface Val { value: number; note?: string }
 
-// Le reps possono essere un intero oppure un'indicazione testuale libera
-// (es. "max", "AMRAP", "8-12"): in quel caso restano 0 e il testo diventa
-// una nota mostrata al posto delle ripetizioni.
-function parseRepsCell(raw: string, rowNum: number): { reps: number; repsNote?: string } {
-  const s = raw.trim();
-  if (s === '') throw new Error(`Riga ${rowNum}: "reps" mancante.`);
+function parseRepsValue(s: string): Val {
   const n = Number(s);
-  if (Number.isInteger(n)) return { reps: n };
-  return { reps: 0, repsNote: s };
+  return Number.isInteger(n) ? { value: n } : { value: 0, note: s };
 }
 
-function makeSet(reps: number, weight: number, repsNote?: string, weightNote?: string): SetDefinition {
-  return { reps, weight, ...(repsNote ? { repsNote } : {}), ...(weightNote ? { weightNote } : {}) };
+function parseWeightValue(s: string, delim: string): Val {
+  const n = Number(delim !== ',' ? s.replace(',', '.') : s);
+  return Number.isFinite(n) ? { value: n } : { value: 0, note: s };
 }
 
-// Costruisce le serie di un esercizio gestendo sia la modalità normale (serie =
-// singolo numero) sia quella variabile (serie = gruppi separati da "-").
+function makeSet(reps: Val, weight: Val): SetDefinition {
+  return {
+    reps: reps.value,
+    weight: weight.value,
+    ...(reps.note ? { repsNote: reps.note } : {}),
+    ...(weight.note ? { weightNote: weight.note } : {}),
+  };
+}
+
+// Espande un campo reps/peso in modalità "serie singola N":
+//  - 1 valore  → applicato a tutte le N serie
+//  - N valori (separati da "-") → uno per serie
+//  - conteggio diverso → l'intera cella resta una nota testuale (es. range "8-12")
+function expandFlat(raw: string, n: number, field: string, rowNum: number, parse: (s: string) => Val): Val[] {
+  const s = raw.trim();
+  if (s === '') throw new Error(`Riga ${rowNum}: "${field}" mancante.`);
+  const parts = s.split('-').map((p) => p.trim());
+  if (parts.length === 1) return Array.from({ length: n }, () => parse(parts[0]));
+  if (parts.length === n) return parts.map(parse);
+  return Array.from({ length: n }, () => ({ value: 0, note: s }));
+}
+
+// Espande un campo reps/peso in modalità "serie a gruppi" (k gruppi):
+//  - 1 valore → applicato a tutti i gruppi
+//  - k valori → uno per gruppo
+//  - altrimenti → errore (la cella "serie" segnala chiaramente la struttura)
+function expandGroups(raw: string, k: number, field: string, rowNum: number, parse: (s: string) => Val): Val[] {
+  const s = raw.trim();
+  if (s === '') throw new Error(`Riga ${rowNum}: "${field}" mancante.`);
+  const parts = s.split('-').map((p) => p.trim());
+  if (parts.length === 1) return Array.from({ length: k }, () => parse(parts[0]));
+  if (parts.length === k) return parts.map(parse);
+  throw new Error(`Riga ${rowNum}: serie, reps e peso devono avere lo stesso numero di gruppi separati da "-".`);
+}
+
+function validateReps(reps: Val, rowNum: number) {
+  if (reps.value < 1 && !reps.note) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1.`);
+}
+
+// Costruisce le serie di un esercizio: modalità normale (serie = numero, reps/peso
+// uguali o uno per serie) o variabile (serie = gruppi "c1-c2-…").
 function buildSets(serieRaw: string, repsRaw: string, pesoRaw: string, delim: string, rowNum: number): SetDefinition[] {
   const serieGroups = serieRaw.split('-').map((s) => s.trim());
 
-  // Modalità normale: una sola serie ripetuta N volte.
+  // Modalità normale: N serie; reps/peso applicati a tutte o uno per serie.
   if (serieGroups.length === 1) {
-    const count = toInt(serieGroups[0], delim, 'serie', rowNum);
-    if (count < 1) throw new Error(`Riga ${rowNum}: "serie" deve essere ≥ 1.`);
-    const { reps, repsNote } = parseRepsCell(repsRaw, rowNum);
-    const { weight, weightNote } = parseWeightCell(pesoRaw, delim, rowNum);
-    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1.`);
-    return Array.from({ length: count }, () => makeSet(reps, weight, repsNote, weightNote));
+    const n = toInt(serieGroups[0], delim, 'serie', rowNum);
+    if (n < 1) throw new Error(`Riga ${rowNum}: "serie" deve essere ≥ 1.`);
+    const reps = expandFlat(repsRaw, n, 'reps', rowNum, parseRepsValue);
+    const weights = expandFlat(pesoRaw, n, 'peso', rowNum, (s) => parseWeightValue(s, delim));
+    return reps.map((r, i) => {
+      validateReps(r, rowNum);
+      return makeSet(r, weights[i]);
+    });
   }
 
-  // Modalità variabile: gruppi allineati su serie / reps / peso.
-  const repsGroups = repsRaw.split('-').map((s) => s.trim());
-  const pesoGroups = pesoRaw.split('-').map((s) => s.trim());
-  if (repsGroups.length !== serieGroups.length || pesoGroups.length !== serieGroups.length) {
-    throw new Error(`Riga ${rowNum}: serie, reps e peso devono avere lo stesso numero di gruppi separati da "-".`);
-  }
+  // Modalità variabile: serie = conteggi per gruppo; reps/peso allineati ai gruppi.
+  const k = serieGroups.length;
+  const counts = serieGroups.map((g) => {
+    const c = toInt(g, delim, 'serie', rowNum);
+    if (c < 1) throw new Error(`Riga ${rowNum}: ogni gruppo di "serie" deve essere ≥ 1.`);
+    return c;
+  });
+  const repsG = expandGroups(repsRaw, k, 'reps', rowNum, parseRepsValue);
+  const weightsG = expandGroups(pesoRaw, k, 'peso', rowNum, (s) => parseWeightValue(s, delim));
 
   const sets: SetDefinition[] = [];
-  for (let g = 0; g < serieGroups.length; g++) {
-    const count = toInt(serieGroups[g], delim, 'serie', rowNum);
-    if (count < 1) throw new Error(`Riga ${rowNum}: ogni gruppo di "serie" deve essere ≥ 1.`);
-    const { reps, repsNote } = parseRepsCell(repsGroups[g], rowNum);
-    const { weight, weightNote } = parseWeightCell(pesoGroups[g], delim, rowNum);
-    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1 (gruppo ${g + 1}).`);
-    for (let k = 0; k < count; k++) sets.push(makeSet(reps, weight, repsNote, weightNote));
+  for (let g = 0; g < k; g++) {
+    validateReps(repsG[g], rowNum);
+    for (let c = 0; c < counts[g]; c++) sets.push(makeSet(repsG[g], weightsG[g]));
   }
   return sets;
 }
