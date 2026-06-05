@@ -248,6 +248,51 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
   return result;
 }
 
+// ── Export ────────────────────────────────────────────────────────
+const CSV_HEADERS = 'cliente,settimana,giorno,etichetta,esercizio,serie,reps,peso,pausa';
+
+// Racchiude un campo tra virgolette se contiene virgola, virgolette o a-capo.
+function esc(field: string): string {
+  return /[",\n]/.test(field) ? `"${field.replace(/"/g, '""')}"` : field;
+}
+
+// Comprime le serie di un esercizio nelle celle serie/reps/peso:
+// serie = numero totale; reps/peso = valore unico se uguali, altrimenti la
+// lista per-serie separata da "-". È l'inverso di buildSets.
+function setsToCells(sets: SetDefinition[]): { serie: string; reps: string; peso: string } {
+  const repsCells = sets.map((s) => s.repsNote ?? String(s.reps));
+  const pesoCells = sets.map((s) => s.weightNote ?? String(s.weight));
+  const uniform = (a: string[]) => a.every((v) => v === a[0]);
+  return {
+    serie: String(sets.length),
+    reps: sets.length && uniform(repsCells) ? repsCells[0] : repsCells.join('-'),
+    peso: sets.length && uniform(pesoCells) ? pesoCells[0] : pesoCells.join('-'),
+  };
+}
+
+/** Esporta una scheda in CSV (stessa convenzione dell'import in blocco). */
+export function planToCsv(plan: TrainingPlan): string {
+  const rows = [CSV_HEADERS];
+  const days = [...plan.days].sort((a, b) => (a.week !== b.week ? a.week - b.week : a.day - b.day));
+  for (const day of days) {
+    for (const ex of day.exercises) {
+      const { serie, reps, peso } = setsToCells(ex.sets);
+      rows.push([
+        esc(plan.name),
+        String(day.week),
+        String(day.day),
+        esc(day.label ?? ''),
+        esc(ex.name),
+        esc(serie),
+        esc(reps),
+        esc(peso),
+        String(ex.restSeconds),
+      ].join(','));
+    }
+  }
+  return rows.join('\n');
+}
+
 /** Contenuto del template CSV scaricabile. */
 export const CSV_TEMPLATE = [
   'cliente,settimana,giorno,etichetta,esercizio,serie,reps,peso,pausa',

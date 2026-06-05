@@ -4,6 +4,7 @@ import { usePlanStore } from '../store/usePlanStore';
 import { uid } from '../utils/id';
 import { buildSuggestions } from '../data/exerciseLibrary';
 import { serializePlan, parsePlan, planFileName, planSummary, decodePlanParam } from '../utils/planTransfer';
+import { parsePlansCsv, planToCsv } from '../utils/csvImport';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 import BottomNav from '../components/BottomNav';
 import ShareModal from '../components/ShareModal';
@@ -40,6 +41,7 @@ export default function PlanBuilder() {
   const [importPreview, setImportPreview] = useState<TrainingPlan | null>(pendingImport.plan);
   const [importError, setImportError] = useState<string | null>(pendingImport.error);
   const [shareTarget, setShareTarget] = useState<TrainingPlan | null>(null);
+  const [exportTarget, setExportTarget] = useState<TrainingPlan | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -122,12 +124,12 @@ export default function PlanBuilder() {
     reorderExercises(selectedPlan.id, dayId, reordered);
   };
 
-  const handleExportPlan = (plan: TrainingPlan) => {
-    const blob = new Blob([serializePlan(plan)], { type: 'application/json' });
+  const downloadFile = (name: string, content: string, type: string) => {
+    const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = planFileName(plan);
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -140,7 +142,18 @@ export default function PlanBuilder() {
       // La conferma avviene in un modale in-app, non con confirm() nativo:
       // dopo un await il contesto del gesto utente è perso e alcuni browser
       // bloccano i dialog nativi, annullando silenziosamente l'import.
-      const plan = parsePlan(await file.text());
+      const text = (await file.text()).trimStart();
+      const isJson = text.startsWith('{') || text.startsWith('[');
+      let plan: TrainingPlan;
+      if (isJson) {
+        plan = parsePlan(text);
+      } else {
+        const plans = parsePlansCsv(text);
+        if (plans.length > 1) {
+          throw new Error('Il CSV contiene più clienti: usa Strumenti → Genera link in blocco.');
+        }
+        plan = plans[0];
+      }
       setImportError(null);
       setImportPreview(plan);
     } catch (err) {
@@ -154,6 +167,15 @@ export default function PlanBuilder() {
     addPlan(importPreview);
     setSelectedPlanId(importPreview.id);
     setImportPreview(null);
+  };
+
+  const exportJson = (plan: TrainingPlan) => {
+    downloadFile(planFileName(plan, 'json'), serializePlan(plan), 'application/json');
+    setExportTarget(null);
+  };
+  const exportCsv = (plan: TrainingPlan) => {
+    downloadFile(planFileName(plan, 'csv'), planToCsv(plan), 'text/csv');
+    setExportTarget(null);
   };
 
   return (
@@ -235,7 +257,7 @@ export default function PlanBuilder() {
           <input
             ref={importInputRef}
             type="file"
-            accept="application/json,.json"
+            accept="application/json,.json,text/csv,.csv"
             onChange={handleImportFile}
             className="hidden"
           />
@@ -248,7 +270,7 @@ export default function PlanBuilder() {
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Importa scheda da file
+            Importa scheda da file (JSON o CSV)
           </button>
         </section>
 
@@ -280,7 +302,7 @@ export default function PlanBuilder() {
                   Condividi
                 </button>
                 <button
-                  onClick={() => handleExportPlan(selectedPlan)}
+                  onClick={() => setExportTarget(selectedPlan)}
                   aria-label="Esporta scheda come file"
                   className="text-xs text-text-2 hover:text-accent border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer flex items-center gap-[5px]"
                 >
@@ -400,6 +422,41 @@ export default function PlanBuilder() {
 
       {shareTarget && (
         <ShareModal plan={shareTarget} onClose={() => setShareTarget(null)} />
+      )}
+
+      {/* Scelta formato export */}
+      {exportTarget && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-6"
+          style={{ background: 'rgba(10,8,7,0.6)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setExportTarget(null)}
+        >
+          <div className="tt-card p-[22px] flex flex-col gap-3 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="tt-display text-[20px]">Esporta scheda</div>
+            <button
+              onClick={() => exportJson(exportTarget)}
+              className="tt-btn-primary py-[13px] text-[14.5px] w-full"
+            >
+              File JSON (backup esatto)
+            </button>
+            <button
+              onClick={() => exportCsv(exportTarget)}
+              className="bg-surface-2 border border-border text-text-1 py-[13px] rounded-btn font-display font-semibold text-[14px] w-full cursor-pointer hover:border-accent-border transition-colors"
+            >
+              File CSV (modificabile in Excel)
+            </button>
+            <p className="font-body text-[12px] text-text-3 leading-relaxed">
+              JSON: formato esatto, ideale come backup. CSV: leggibile e modificabile
+              in un foglio di calcolo, reimportabile da qui.
+            </p>
+            <button
+              onClick={() => setExportTarget(null)}
+              className="text-text-2 text-[13px] font-display font-semibold bg-transparent border-none cursor-pointer mt-1"
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Conferma import (modale in-app) */}

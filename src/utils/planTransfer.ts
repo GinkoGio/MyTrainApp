@@ -21,13 +21,13 @@ export function serializePlan(plan: TrainingPlan): string {
 }
 
 /** Nome file suggerito per il download, derivato dal nome della scheda. */
-export function planFileName(plan: TrainingPlan): string {
+export function planFileName(plan: TrainingPlan, ext = 'json'): string {
   const slug = plan.name
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return `${slug || 'scheda'}.json`;
+  return `${slug || 'scheda'}.${ext}`;
 }
 
 /** Riassunto breve per il prompt di conferma import. */

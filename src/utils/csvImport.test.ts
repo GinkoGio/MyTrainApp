@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parsePlansCsv } from './csvImport';
+import { parsePlansCsv, planToCsv } from './csvImport';
+import type { TrainingPlan } from '../types';
 
 const CSV = `cliente,settimana,giorno,etichetta,esercizio,serie,reps,peso,pausa
 Mario,1,1,Push,Panca piana,5,6,60,90
@@ -153,5 +154,54 @@ Gio,1,1,Panca,2-1-1,8-7,12-11-9`;
 
   it('rifiuta input senza righe di dati', () => {
     expect(() => parsePlansCsv('cliente,settimana,giorno,esercizio,serie,reps,peso')).toThrow();
+  });
+});
+
+describe('planToCsv — export e round-trip', () => {
+  const plan: TrainingPlan = {
+    id: 'p1',
+    name: 'Mario Rossi',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    days: [
+      {
+        id: 'd1', week: 1, day: 1, label: 'Push',
+        exercises: [
+          { id: 'e1', name: 'Panca piana', restSeconds: 90, sets: [{ reps: 6, weight: 60 }, { reps: 6, weight: 60 }] },
+          // serie variabili + nota
+          { id: 'e2', name: 'Trazioni', restSeconds: 75, sets: [
+            { reps: 8, weight: 0, weightNote: '1/2 peso max' },
+            { reps: 7, weight: 0, weightNote: '1/2 peso max' },
+            { reps: 0, weight: 50, repsNote: 'max' },
+          ] },
+        ],
+      },
+    ],
+  };
+
+  it('comprime le serie uguali e tiene il nome scheda', () => {
+    const csv = planToCsv(plan);
+    expect(csv.split('\n')[0]).toBe('cliente,settimana,giorno,etichetta,esercizio,serie,reps,peso,pausa');
+    // Panca: 2 serie uguali -> "2,6,60"
+    expect(csv).toContain('Mario Rossi,1,1,Push,Panca piana,2,6,60,90');
+  });
+
+  it('round-trip planToCsv -> parsePlansCsv conserva le serie', () => {
+    const [back] = parsePlansCsv(planToCsv(plan));
+    expect(back.name).toBe('Mario Rossi');
+    const [panca, trazioni] = back.days[0].exercises;
+    expect(panca.sets).toHaveLength(2);
+    expect(panca.sets.every((s) => s.reps === 6 && s.weight === 60)).toBe(true);
+    expect(trazioni.sets).toHaveLength(3);
+    expect(trazioni.sets[0]).toMatchObject({ reps: 8, weightNote: '1/2 peso max' });
+    expect(trazioni.sets[2]).toMatchObject({ repsNote: 'max', weight: 50 });
+  });
+
+  it('quota i campi che contengono virgole', () => {
+    const p: TrainingPlan = {
+      id: 'x', name: 'Tizio, Caio', createdAt: '', days: [
+        { id: 'd', week: 1, day: 1, exercises: [{ id: 'e', name: 'Squat', restSeconds: 60, sets: [{ reps: 5, weight: 50 }] }] },
+      ],
+    };
+    expect(planToCsv(p)).toContain('"Tizio, Caio"');
   });
 });
