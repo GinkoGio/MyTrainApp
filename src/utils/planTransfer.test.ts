@@ -103,6 +103,13 @@ describe('encodePlanParam / decodePlanParam — QR/link', () => {
   it('rifiuta un parametro danneggiato', () => {
     expect(() => decodePlanParam('§§§non-valido§§§')).toThrow();
   });
+
+  it('preserva la nota peso (weightNote) nel round-trip', () => {
+    const plan = samplePlan();
+    plan.days[0].exercises[0].sets[0] = { reps: 6, weight: 0, weightNote: '1/2 peso max' };
+    const parsed = decodePlanParam(encodePlanParam(plan));
+    expect(parsed.days[0].exercises[0].sets[0].weightNote).toBe('1/2 peso max');
+  });
 });
 
 describe('planFileName / planSummary', () => {

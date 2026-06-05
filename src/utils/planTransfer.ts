@@ -84,7 +84,9 @@ export function parsePlan(text: string): TrainingPlan {
         if (!isNum(s.reps) || !isNum(s.weight)) {
           throw new Error(`${where}, serie ${si + 1}: ripetizioni o peso non validi.`);
         }
-        return { reps: s.reps, weight: s.weight };
+        const set: SetDefinition = { reps: s.reps, weight: s.weight };
+        if (isStr(s.weightNote) && s.weightNote.trim()) set.weightNote = s.weightNote.trim();
+        return set;
       });
 
       return { id: uid(), name: e.name.trim(), restSeconds: e.restSeconds, sets };
@@ -115,7 +117,11 @@ function compactPlan(plan: TrainingPlan) {
       exercises: d.exercises.map((e) => ({
         name: e.name,
         restSeconds: e.restSeconds,
-        sets: e.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+        sets: e.sets.map((s) => ({
+          reps: s.reps,
+          weight: s.weight,
+          ...(s.weightNote ? { weightNote: s.weightNote } : {}),
+        })),
       })),
     })),
   };

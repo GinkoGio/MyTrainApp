@@ -76,6 +76,17 @@ Gio,1,1,Squat,tre,5,50`;
     expect(() => parsePlansCsv(csv)).toThrow(/Riga 2/);
   });
 
+  it('accetta un peso testuale come nota (es. "1/2 peso max")', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Trazioni,4,6,1/2 peso max
+Gio,1,1,Squat,5,5,max`;
+    const [gio] = parsePlansCsv(csv);
+    const [trazioni, squat] = gio.days[0].exercises;
+    expect(trazioni.sets[0].weight).toBe(0);
+    expect(trazioni.sets[0].weightNote).toBe('1/2 peso max');
+    expect(squat.sets[0].weightNote).toBe('max');
+  });
+
   it('rifiuta input senza righe di dati', () => {
     expect(() => parsePlansCsv('cliente,settimana,giorno,esercizio,serie,reps,peso')).toThrow();
   });

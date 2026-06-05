@@ -79,6 +79,17 @@ function toInt(raw: string, delim: string, field: string, rowNum: number): numbe
   return n;
 }
 
+// Il peso può essere un numero (kg) oppure un'indicazione testuale libera
+// (es. "max", "1/2 peso max"): in quel caso il carico resta 0 e il testo
+// diventa una nota mostrata al posto dei kg.
+function parseWeightCell(raw: string, delim: string, rowNum: number): { weight: number; weightNote?: string } {
+  const s = raw.trim();
+  if (s === '') throw new Error(`Riga ${rowNum}: "peso" mancante.`);
+  const n = Number(delim !== ',' ? s.replace(',', '.') : s);
+  if (Number.isFinite(n)) return { weight: n };
+  return { weight: 0, weightNote: s };
+}
+
 /**
  * Converte il testo CSV in una lista di schede (una per "cliente"), con id nuovi.
  * Lancia Error con messaggio leggibile (incluso il numero di riga) se non valido.
@@ -118,7 +129,7 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
     const day = toInt(get('giorno'), delim, 'giorno', rowNum);
     const serie = toInt(get('serie'), delim, 'serie', rowNum);
     const reps = toInt(get('reps'), delim, 'reps', rowNum);
-    const peso = toNum(get('peso'), delim, 'peso', rowNum);
+    const { weight: peso, weightNote } = parseWeightCell(get('peso'), delim, rowNum);
     const pausaRaw = get('pausa').trim();
     const pausa = pausaRaw === '' ? 90 : toInt(pausaRaw, delim, 'pausa', rowNum);
     const etichetta = get('etichetta').trim();
@@ -147,7 +158,11 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
       id: uid(),
       name: esercizio,
       restSeconds: pausa,
-      sets: Array.from({ length: serie }, () => ({ reps, weight: peso })),
+      sets: Array.from({ length: serie }, () => ({
+        reps,
+        weight: peso,
+        ...(weightNote ? { weightNote } : {}),
+      })),
     } satisfies PlannedExercise);
   }
 
@@ -165,6 +180,7 @@ export const CSV_TEMPLATE = [
   'Mario Rossi,1,1,Push,Panca piana,5,6,60,90',
   'Mario Rossi,1,1,Push,Spinte manubri,4,8,22,75',
   'Mario Rossi,1,2,Pull,Stacco,5,5,80,120',
+  'Mario Rossi,1,2,Pull,Trazioni,4,6,1/2 peso max,90',
   'Anna Bianchi,1,1,Full body,Squat,4,8,40,90',
   'Anna Bianchi,1,1,Full body,Lat machine,4,10,35,60',
 ].join('\n');
