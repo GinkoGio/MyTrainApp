@@ -90,6 +90,17 @@ function parseWeightCell(raw: string, delim: string, rowNum: number): { weight: 
   return { weight: 0, weightNote: s };
 }
 
+// Le reps possono essere un intero oppure un'indicazione testuale libera
+// (es. "max", "AMRAP", "8-12"): in quel caso restano 0 e il testo diventa
+// una nota mostrata al posto delle ripetizioni.
+function parseRepsCell(raw: string, rowNum: number): { reps: number; repsNote?: string } {
+  const s = raw.trim();
+  if (s === '') throw new Error(`Riga ${rowNum}: "reps" mancante.`);
+  const n = Number(s);
+  if (Number.isInteger(n)) return { reps: n };
+  return { reps: 0, repsNote: s };
+}
+
 /**
  * Converte il testo CSV in una lista di schede (una per "cliente"), con id nuovi.
  * Lancia Error con messaggio leggibile (incluso il numero di riga) se non valido.
@@ -128,13 +139,14 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
     const week = toInt(get('settimana'), delim, 'settimana', rowNum);
     const day = toInt(get('giorno'), delim, 'giorno', rowNum);
     const serie = toInt(get('serie'), delim, 'serie', rowNum);
-    const reps = toInt(get('reps'), delim, 'reps', rowNum);
+    const { reps, repsNote } = parseRepsCell(get('reps'), rowNum);
     const { weight: peso, weightNote } = parseWeightCell(get('peso'), delim, rowNum);
     const pausaRaw = get('pausa').trim();
     const pausa = pausaRaw === '' ? 90 : toInt(pausaRaw, delim, 'pausa', rowNum);
     const etichetta = get('etichetta').trim();
 
-    if (serie < 1 || reps < 1) throw new Error(`Riga ${rowNum}: serie e reps devono essere ≥ 1.`);
+    if (serie < 1) throw new Error(`Riga ${rowNum}: "serie" deve essere ≥ 1.`);
+    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1.`);
 
     let plan = plans.get(cliente);
     if (!plan) {
@@ -161,6 +173,7 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
       sets: Array.from({ length: serie }, () => ({
         reps,
         weight: peso,
+        ...(repsNote ? { repsNote } : {}),
         ...(weightNote ? { weightNote } : {}),
       })),
     } satisfies PlannedExercise);
@@ -180,7 +193,7 @@ export const CSV_TEMPLATE = [
   'Mario Rossi,1,1,Push,Panca piana,5,6,60,90',
   'Mario Rossi,1,1,Push,Spinte manubri,4,8,22,75',
   'Mario Rossi,1,2,Pull,Stacco,5,5,80,120',
-  'Mario Rossi,1,2,Pull,Trazioni,4,6,1/2 peso max,90',
+  'Mario Rossi,1,2,Pull,Trazioni,4,max,1/2 peso max,90',
   'Anna Bianchi,1,1,Full body,Squat,4,8,40,90',
   'Anna Bianchi,1,1,Full body,Lat machine,4,10,35,60',
 ].join('\n');

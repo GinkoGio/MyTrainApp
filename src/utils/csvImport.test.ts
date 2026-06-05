@@ -87,6 +87,18 @@ Gio,1,1,Squat,5,5,max`;
     expect(squat.sets[0].weightNote).toBe('max');
   });
 
+  it('accetta reps testuali come nota (es. "max", "8-12")', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Trazioni,4,max,1/2 peso max
+Gio,1,1,Panca,3,8-12,40`;
+    const [gio] = parsePlansCsv(csv);
+    const [trazioni, panca] = gio.days[0].exercises;
+    expect(trazioni.sets[0].reps).toBe(0);
+    expect(trazioni.sets[0].repsNote).toBe('max');
+    expect(panca.sets[0].repsNote).toBe('8-12');
+    expect(panca.sets[0].reps).toBe(0);
+  });
+
   it('rifiuta input senza righe di dati', () => {
     expect(() => parsePlansCsv('cliente,settimana,giorno,esercizio,serie,reps,peso')).toThrow();
   });

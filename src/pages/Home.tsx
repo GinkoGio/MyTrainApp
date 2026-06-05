@@ -134,6 +134,7 @@ export default function Home() {
         sets: ex.sets.map((s) => ({
           reps: s.reps,
           weight: s.weight,
+          ...(s.repsNote ? { repsNote: s.repsNote } : {}),
           ...(s.weightNote ? { weightNote: s.weightNote } : {}),
           completed: false,
         })),
@@ -233,7 +234,7 @@ export default function Home() {
                     {ex.name}
                   </span>
                   <span className="font-mono text-[12px] text-text-2 shrink-0">
-                    {ex.sets.length}×{ex.sets[0]?.reps ?? '?'} · {ex.sets[0]?.weightNote ?? `${ex.sets[0]?.weight ?? '?'}kg`}
+                    {ex.sets.length}×{ex.sets[0]?.repsNote ?? ex.sets[0]?.reps ?? '?'} · {ex.sets[0]?.weightNote ?? `${ex.sets[0]?.weight ?? '?'}kg`}
                   </span>
                 </div>
               ))}

@@ -162,8 +162,13 @@ export default function ActiveWorkout() {
                   Serie {currentSetIndex + 1} di {currentEx.sets.length}
                 </span>
                 <div className="tt-display text-[32px] mt-2">{currentEx.name}</div>
-                {currentSet.weightNote && (
+                {currentSet.repsNote && (
                   <p className="font-mono text-[12.5px] text-accent mt-2">
+                    Reps indicate: {currentSet.repsNote}
+                  </p>
+                )}
+                {currentSet.weightNote && (
+                  <p className="font-mono text-[12.5px] text-accent mt-1">
                     Peso indicato: {currentSet.weightNote}
                   </p>
                 )}

@@ -556,7 +556,7 @@ function DayCard({
                 <button onClick={() => onEditExercise(ex)} className="flex-1 text-left min-w-0 bg-transparent border-none cursor-pointer p-0">
                   <p className="text-text-1 font-body font-semibold text-[13.5px] truncate">{ex.name || '—'}</p>
                   <p className="font-mono text-[11px] text-text-2 mt-[2px]">
-                    {ex.sets.length}×{ex.sets[0]?.reps} · {ex.sets[0]?.weightNote ?? `${ex.sets[0]?.weight}kg`} · pausa {ex.restSeconds}s
+                    {ex.sets.length}×{ex.sets[0]?.repsNote ?? ex.sets[0]?.reps} · {ex.sets[0]?.weightNote ?? `${ex.sets[0]?.weight}kg`} · pausa {ex.restSeconds}s
                     {!allSetsEqual(ex.sets) && (
                       <span className="text-accent ml-[5px]">· var.</span>
                     )}

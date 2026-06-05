@@ -1,6 +1,9 @@
 export interface SetDefinition {
   reps: number;
   weight: number;
+  /** Indicazione testuale delle ripetizioni (es. "max", "AMRAP", "8-12")
+   *  quando non sono un numero. Se presente, va mostrata al posto delle reps. */
+  repsNote?: string;
   /** Indicazione testuale del peso (es. "peso max", "1/2 peso max") quando il
    *  carico non è un numero. Se presente, va mostrata al posto dei kg. */
   weightNote?: string;
@@ -31,6 +34,7 @@ export interface TrainingPlan {
 export interface PerformedSet {
   reps: number;
   weight: number;
+  repsNote?: string;
   weightNote?: string;
   completed: boolean;
 }
