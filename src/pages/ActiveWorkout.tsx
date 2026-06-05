@@ -97,15 +97,27 @@ export default function ActiveWorkout() {
   return (
     <div className="max-w-lg mx-auto flex flex-col min-h-screen p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="font-mono text-[11px] text-text-3 uppercase tracking-[0.06em]">{log.planName}</p>
-          <p className="tt-display text-[15px]">Sett. {log.week} · Giorno {log.day}</p>
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Sospendi: torna alla home mantenendo la sessione attiva (ripristinabile) */}
+          <button
+            onClick={() => navigate('/')}
+            aria-label="Sospendi e torna alla home"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-text-2 hover:text-text-1 hover:bg-surface-2 transition-colors active:scale-90 border-none bg-transparent cursor-pointer shrink-0"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <p className="font-mono text-[11px] text-text-3 uppercase tracking-[0.06em] truncate">{log.planName}</p>
+            <p className="tt-display text-[15px]">Sett. {log.week} · Giorno {log.day}</p>
+          </div>
         </div>
         {!isWorkoutDone && (
           <button
             onClick={() => setShowAbandon(true)}
-            className="text-text-3 hover:text-text-2 font-display font-semibold text-sm bg-transparent border-none cursor-pointer"
+            className="text-danger/80 hover:text-danger font-display font-semibold text-sm bg-transparent border-none cursor-pointer shrink-0"
           >
             Abbandona
           </button>
