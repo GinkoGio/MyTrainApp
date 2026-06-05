@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanStore } from '../store/usePlanStore';
 import { uid } from '../utils/id';
 import { buildSuggestions } from '../data/exerciseLibrary';
-import { serializePlan, parsePlan, planFileName, planSummary, encodePlanParam, decodePlanParam } from '../utils/planTransfer';
+import { serializePlan, parsePlan, planFileName, planSummary, decodePlanParam } from '../utils/planTransfer';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 import BottomNav from '../components/BottomNav';
+import ShareModal from '../components/ShareModal';
 import { PENDING_IMPORT_KEY } from '../App';
 
 const allSetsEqual = (sets: SetDefinition[]) =>
@@ -169,7 +170,18 @@ export default function PlanBuilder() {
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
-        <h1 className="tt-display text-[22px]">Le tue schede</h1>
+        <h1 className="tt-display text-[22px] flex-1">Le tue schede</h1>
+        <button
+          onClick={() => navigate('/tools')}
+          aria-label="Strumenti: genera link in blocco"
+          className="text-xs text-text-2 hover:text-accent border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer flex items-center gap-[5px] shrink-0"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          Blocco
+        </button>
       </header>
 
       <div className="p-4 pb-32 flex flex-col gap-5">
@@ -855,83 +867,6 @@ function Stepper({
         >
           +
         </button>
-      </div>
-    </div>
-  );
-}
-
-function ShareModal({ plan, onClose }: { plan: TrainingPlan; onClose: () => void }) {
-  const link = `${window.location.origin}${import.meta.env.BASE_URL}#import=${encodePlanParam(plan)}`;
-  const [qr, setQr] = useState<string | null>(null);
-  const [tooBig, setTooBig] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      // qrcode caricato on-demand per non appesantire il bundle iniziale.
-      const { default: QRCode } = await import('qrcode');
-      // Prova prima con correzione M (più robusta), poi L (più capiente).
-      for (const errorCorrectionLevel of ['M', 'L'] as const) {
-        try {
-          const url = await QRCode.toDataURL(link, {
-            errorCorrectionLevel,
-            margin: 2,
-            width: 260,
-            color: { dark: '#161210', light: '#ffffff' },
-          });
-          if (!cancelled) { setQr(url); setTooBig(false); }
-          return;
-        } catch { /* scheda troppo grande per questo livello, riprova */ }
-      }
-      if (!cancelled) { setQr(null); setTooBig(true); }
-    })();
-    return () => { cancelled = true; };
-  }, [link]);
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch { /* clipboard non disponibile */ }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-6"
-      style={{ background: 'rgba(10,8,7,0.6)', backdropFilter: 'blur(3px)' }}
-      onClick={onClose}
-    >
-      <div className="tt-card p-[22px] flex flex-col items-center gap-3 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="tt-display text-[20px] self-start">Condividi scheda</div>
-        <p className="font-body text-[13px] text-text-2 self-start -mt-1">
-          Inquadra il QR con la fotocamera del telefono, oppure copia il link.
-        </p>
-
-        {qr ? (
-          <img src={qr} alt="QR code della scheda" className="w-[240px] h-[240px] rounded-[8px]" />
-        ) : tooBig ? (
-          <div className="text-center font-body text-[13px] text-text-2 py-8 px-2">
-            Scheda troppo grande per un QR. Usa <span className="text-accent font-semibold">Copia link</span> o l'export su file.
-          </div>
-        ) : (
-          <div className="w-[240px] h-[240px] flex items-center justify-center text-text-3 font-mono text-xs">…</div>
-        )}
-
-        <p className="font-mono text-[11px] text-text-3">{planSummary(plan)}</p>
-
-        <div className="flex gap-3 w-full mt-1">
-          <button
-            onClick={onClose}
-            className="flex-1 bg-surface-2 border border-border text-text-2 py-[13px] rounded-btn font-display font-semibold text-[14px] cursor-pointer"
-          >
-            Chiudi
-          </button>
-          <button onClick={copyLink} className="flex-1 tt-btn-primary py-[13px] text-[14px]">
-            {copied ? 'Copiato!' : 'Copia link'}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ App web per gestire e seguire le schede di allenamento in palestra, direttamente
 - **Storico sessioni** — ogni allenamento completato viene salvato con i pesi e le ripetizioni realmente eseguiti
 - **Import / export schede** — esporta una scheda in un file `.json` (utile anche come backup o per condividerla) e reimportala: i dati vengono validati e gli id rigenerati, così l'import diventa sempre una nuova scheda senza conflitti
 - **Condivisione via QR / link** — condividi una scheda con un QR (o un link): chi lo riceve inquadra il codice con la fotocamera del telefono e l'app si apre già pronta a importarla. I dati viaggiano compressi nel link stesso (nessun server); le schede troppo grandi per un QR restano condivisibili via file
+- **Generazione link in blocco (trainer)** — in *Schede → Blocco* incolli un CSV (una riga per esercizio, colonna `cliente` per raggruppare) e ottieni un link/QR per ogni cliente, con "copia tutti i link". Pensato per chi prepara molte schede ogni settimana partendo da un foglio di calcolo
 - **Nessun server** — tutti i dati sono salvati in `localStorage`, l'app funziona offline (service worker)
 
 ## Stack tecnico

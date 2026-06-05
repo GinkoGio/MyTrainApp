@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import PlanBuilder from './pages/PlanBuilder';
 import ActiveWorkout from './pages/ActiveWorkout';
 import History from './pages/History';
+import Tools from './pages/Tools';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export const PENDING_IMPORT_KEY = 'mytrainapp-pending-import';
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/plans" element={<PlanBuilder />} />
           <Route path="/workout" element={<ActiveWorkout />} />
           <Route path="/history" element={<History />} />
+          <Route path="/tools" element={<Tools />} />
         </Routes>
       </BrowserRouter>
     </ErrorBoundary>

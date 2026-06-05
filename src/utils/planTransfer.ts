@@ -132,3 +132,8 @@ export function decodePlanParam(param: string): TrainingPlan {
   if (!json) throw new Error('Codice non valido o danneggiato.');
   return parsePlan(json);
 }
+
+/** Link condivisibile auto-contenuto (i dati viaggiano nell'hash dell'URL). */
+export function buildShareLink(plan: TrainingPlan): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}#import=${encodePlanParam(plan)}`;
+}
