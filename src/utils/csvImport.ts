@@ -1,9 +1,14 @@
 // Parser CSV per creare in blocco le schede dei clienti da un foglio di calcolo.
-// Una riga = un esercizio (con N serie uguali). La colonna "cliente" raggruppa
-// le righe in schede separate. Gestisce delimitatore ; o , (Excel italiano usa
-// ; e la virgola come separatore decimale) e intestazioni con sinonimi/accenti.
+// Una riga = un esercizio. La colonna "cliente" raggruppa le righe in schede
+// separate. Gestisce delimitatore ; o , (Excel italiano usa ; e la virgola come
+// separatore decimale) e intestazioni con sinonimi/accenti.
+//
+// Serie variabili: se "serie" contiene gruppi separati da "-" (es. 2-1-1), anche
+// "reps" e "peso" si leggono a gruppi con lo stesso numero di elementi. Esempio:
+//   serie 2-1-1 / reps 8-7-7 / peso 12-11-9
+//   => 4 serie: 8@12, 8@12, 7@11, 7@9
 import { uid } from './id';
-import type { TrainingPlan, TrainingDay, PlannedExercise } from '../types';
+import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 
 type Canon = 'cliente' | 'settimana' | 'giorno' | 'etichetta' | 'esercizio' | 'serie' | 'reps' | 'peso' | 'pausa';
 
@@ -101,6 +106,44 @@ function parseRepsCell(raw: string, rowNum: number): { reps: number; repsNote?: 
   return { reps: 0, repsNote: s };
 }
 
+function makeSet(reps: number, weight: number, repsNote?: string, weightNote?: string): SetDefinition {
+  return { reps, weight, ...(repsNote ? { repsNote } : {}), ...(weightNote ? { weightNote } : {}) };
+}
+
+// Costruisce le serie di un esercizio gestendo sia la modalità normale (serie =
+// singolo numero) sia quella variabile (serie = gruppi separati da "-").
+function buildSets(serieRaw: string, repsRaw: string, pesoRaw: string, delim: string, rowNum: number): SetDefinition[] {
+  const serieGroups = serieRaw.split('-').map((s) => s.trim());
+
+  // Modalità normale: una sola serie ripetuta N volte.
+  if (serieGroups.length === 1) {
+    const count = toInt(serieGroups[0], delim, 'serie', rowNum);
+    if (count < 1) throw new Error(`Riga ${rowNum}: "serie" deve essere ≥ 1.`);
+    const { reps, repsNote } = parseRepsCell(repsRaw, rowNum);
+    const { weight, weightNote } = parseWeightCell(pesoRaw, delim, rowNum);
+    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1.`);
+    return Array.from({ length: count }, () => makeSet(reps, weight, repsNote, weightNote));
+  }
+
+  // Modalità variabile: gruppi allineati su serie / reps / peso.
+  const repsGroups = repsRaw.split('-').map((s) => s.trim());
+  const pesoGroups = pesoRaw.split('-').map((s) => s.trim());
+  if (repsGroups.length !== serieGroups.length || pesoGroups.length !== serieGroups.length) {
+    throw new Error(`Riga ${rowNum}: serie, reps e peso devono avere lo stesso numero di gruppi separati da "-".`);
+  }
+
+  const sets: SetDefinition[] = [];
+  for (let g = 0; g < serieGroups.length; g++) {
+    const count = toInt(serieGroups[g], delim, 'serie', rowNum);
+    if (count < 1) throw new Error(`Riga ${rowNum}: ogni gruppo di "serie" deve essere ≥ 1.`);
+    const { reps, repsNote } = parseRepsCell(repsGroups[g], rowNum);
+    const { weight, weightNote } = parseWeightCell(pesoGroups[g], delim, rowNum);
+    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1 (gruppo ${g + 1}).`);
+    for (let k = 0; k < count; k++) sets.push(makeSet(reps, weight, repsNote, weightNote));
+  }
+  return sets;
+}
+
 /**
  * Converte il testo CSV in una lista di schede (una per "cliente"), con id nuovi.
  * Lancia Error con messaggio leggibile (incluso il numero di riga) se non valido.
@@ -138,15 +181,10 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
 
     const week = toInt(get('settimana'), delim, 'settimana', rowNum);
     const day = toInt(get('giorno'), delim, 'giorno', rowNum);
-    const serie = toInt(get('serie'), delim, 'serie', rowNum);
-    const { reps, repsNote } = parseRepsCell(get('reps'), rowNum);
-    const { weight: peso, weightNote } = parseWeightCell(get('peso'), delim, rowNum);
+    const sets = buildSets(get('serie'), get('reps'), get('peso'), delim, rowNum);
     const pausaRaw = get('pausa').trim();
     const pausa = pausaRaw === '' ? 90 : toInt(pausaRaw, delim, 'pausa', rowNum);
     const etichetta = get('etichetta').trim();
-
-    if (serie < 1) throw new Error(`Riga ${rowNum}: "serie" deve essere ≥ 1.`);
-    if (reps < 1 && !repsNote) throw new Error(`Riga ${rowNum}: "reps" deve essere ≥ 1.`);
 
     let plan = plans.get(cliente);
     if (!plan) {
@@ -170,12 +208,7 @@ export function parsePlansCsv(text: string): TrainingPlan[] {
       id: uid(),
       name: esercizio,
       restSeconds: pausa,
-      sets: Array.from({ length: serie }, () => ({
-        reps,
-        weight: peso,
-        ...(repsNote ? { repsNote } : {}),
-        ...(weightNote ? { weightNote } : {}),
-      })),
+      sets,
     } satisfies PlannedExercise);
   }
 
@@ -194,6 +227,7 @@ export const CSV_TEMPLATE = [
   'Mario Rossi,1,1,Push,Spinte manubri,4,8,22,75',
   'Mario Rossi,1,2,Pull,Stacco,5,5,80,120',
   'Mario Rossi,1,2,Pull,Trazioni,4,max,1/2 peso max,90',
+  'Mario Rossi,1,2,Pull,Rematore,2-1-1,8-7-7,12-11-9,90',
   'Anna Bianchi,1,1,Full body,Squat,4,8,40,90',
   'Anna Bianchi,1,1,Full body,Lat machine,4,10,35,60',
 ].join('\n');

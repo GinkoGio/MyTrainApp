@@ -99,6 +99,33 @@ Gio,1,1,Panca,3,8-12,40`;
     expect(panca.sets[0].reps).toBe(0);
   });
 
+  it('espande le serie variabili (serie/reps/peso a gruppi separati da -)', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Panca,2-1-1,8-7-7,12-11-9`;
+    const [gio] = parsePlansCsv(csv);
+    const sets = gio.days[0].exercises[0].sets;
+    expect(sets).toHaveLength(4);
+    expect(sets.map((s) => s.reps)).toEqual([8, 8, 7, 7]);
+    expect(sets.map((s) => s.weight)).toEqual([12, 12, 11, 9]);
+  });
+
+  it('le serie variabili supportano note testuali per gruppo', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Trazioni,2-1,max-8,1/2 peso max-50`;
+    const [gio] = parsePlansCsv(csv);
+    const sets = gio.days[0].exercises[0].sets;
+    expect(sets).toHaveLength(3);
+    expect(sets[0].repsNote).toBe('max');
+    expect(sets[0].weightNote).toBe('1/2 peso max');
+    expect(sets[2]).toMatchObject({ reps: 8, weight: 50 });
+  });
+
+  it('errore se i gruppi di serie/reps/peso non combaciano', () => {
+    const csv = `cliente,settimana,giorno,esercizio,serie,reps,peso
+Gio,1,1,Panca,2-1-1,8-7,12-11-9`;
+    expect(() => parsePlansCsv(csv)).toThrow(/gruppi/i);
+  });
+
   it('rifiuta input senza righe di dati', () => {
     expect(() => parsePlansCsv('cliente,settimana,giorno,esercizio,serie,reps,peso')).toThrow();
   });
