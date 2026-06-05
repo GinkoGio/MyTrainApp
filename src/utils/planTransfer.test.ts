@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serializePlan, parsePlan, planFileName, planSummary } from './planTransfer';
+import { serializePlan, parsePlan, planFileName, planSummary, encodePlanParam, decodePlanParam } from './planTransfer';
 import type { TrainingPlan } from '../types';
 
 const samplePlan = (): TrainingPlan => ({
@@ -79,6 +79,29 @@ describe('parsePlan — validazione', () => {
       ],
     };
     expect(() => parsePlan(JSON.stringify(bad))).toThrow(/peso/i);
+  });
+});
+
+describe('encodePlanParam / decodePlanParam — QR/link', () => {
+  it('round-trip compresso preserva i dati e rigenera gli id', () => {
+    const param = encodePlanParam(samplePlan());
+    expect(typeof param).toBe('string');
+    expect(param.length).toBeGreaterThan(0);
+
+    const parsed = decodePlanParam(param);
+    expect(parsed.name).toBe('Push Pull Legs');
+    expect(parsed.days[0].label).toBe('Push');
+    expect(parsed.days[0].exercises[0].name).toBe('Panca piana');
+    expect(parsed.id).not.toBe('p1');
+  });
+
+  it('il payload compresso è più corto del JSON pieno', () => {
+    const plan = samplePlan();
+    expect(encodePlanParam(plan).length).toBeLessThan(serializePlan(plan).length);
+  });
+
+  it('rifiuta un parametro danneggiato', () => {
+    expect(() => decodePlanParam('§§§non-valido§§§')).toThrow();
   });
 });
 

@@ -1,6 +1,7 @@
 // Serializzazione e import/export di una scheda come file JSON.
 // L'import valida la struttura e rigenera tutti gli id, così una scheda
 // importata non entra mai in conflitto con quelle esistenti.
+import LZString from 'lz-string';
 import { uid } from './id';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 
@@ -99,4 +100,35 @@ export function parsePlan(text: string): TrainingPlan {
   });
 
   return { id: uid(), name: raw.name.trim(), days, createdAt: new Date().toISOString() };
+}
+
+// ── Condivisione compatta (QR / link) ─────────────────────────────
+// Versione "magra" della scheda senza id/createdAt (rigenerati all'import):
+// riduce i byte da far entrare in un QR.
+function compactPlan(plan: TrainingPlan) {
+  return {
+    name: plan.name,
+    days: plan.days.map((d) => ({
+      week: d.week,
+      day: d.day,
+      ...(d.label ? { label: d.label } : {}),
+      exercises: d.exercises.map((e) => ({
+        name: e.name,
+        restSeconds: e.restSeconds,
+        sets: e.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+      })),
+    })),
+  };
+}
+
+/** Codifica una scheda in una stringa compressa e URL-safe (per QR/link). */
+export function encodePlanParam(plan: TrainingPlan): string {
+  return LZString.compressToEncodedURIComponent(JSON.stringify(compactPlan(plan)));
+}
+
+/** Decodifica una stringa prodotta da encodePlanParam in una scheda validata. */
+export function decodePlanParam(param: string): TrainingPlan {
+  const json = LZString.decompressFromEncodedURIComponent(param);
+  if (!json) throw new Error('Codice non valido o danneggiato.');
+  return parsePlan(json);
 }

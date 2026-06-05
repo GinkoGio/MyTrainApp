@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanStore } from '../store/usePlanStore';
 import { uid } from '../utils/id';
 import { buildSuggestions } from '../data/exerciseLibrary';
-import { serializePlan, parsePlan, planFileName, planSummary } from '../utils/planTransfer';
+import { serializePlan, parsePlan, planFileName, planSummary, encodePlanParam, decodePlanParam } from '../utils/planTransfer';
 import type { TrainingPlan, TrainingDay, PlannedExercise, SetDefinition } from '../types';
 import BottomNav from '../components/BottomNav';
+import { PENDING_IMPORT_KEY } from '../App';
 
 const allSetsEqual = (sets: SetDefinition[]) =>
   sets.length > 0 && sets.every((s) => s.reps === sets[0].reps && s.weight === sets[0].weight);
@@ -22,9 +23,27 @@ export default function PlanBuilder() {
   const [newPlanName, setNewPlanName] = useState('');
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [editingExercise, setEditingExercise] = useState<{ dayId: string; ex: PlannedExercise } | null>(null);
-  const [importPreview, setImportPreview] = useState<TrainingPlan | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  // Import da link/QR: il payload è stato salvato in sessionStorage da App.
+  // Lo decodifichiamo una sola volta all'avvio (init lazy) e ripuliamo lo
+  // storage in un effetto, così un refresh non re-importa.
+  const [pendingImport] = useState<{ plan: TrainingPlan | null; error: string | null }>(() => {
+    const param = sessionStorage.getItem(PENDING_IMPORT_KEY);
+    if (!param) return { plan: null, error: null };
+    try {
+      return { plan: decodePlanParam(param), error: null };
+    } catch (err) {
+      return { plan: null, error: err instanceof Error ? err.message : 'Link non valido.' };
+    }
+  });
+
+  const [importPreview, setImportPreview] = useState<TrainingPlan | null>(pendingImport.plan);
+  const [importError, setImportError] = useState<string | null>(pendingImport.error);
+  const [shareTarget, setShareTarget] = useState<TrainingPlan | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    sessionStorage.removeItem(PENDING_IMPORT_KEY);
+  }, []);
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId) ?? null;
 
@@ -234,6 +253,21 @@ export default function PlanBuilder() {
               <h2 className="tt-display text-[22px] truncate">{selectedPlan.name}</h2>
               <div className="flex gap-2 shrink-0 items-center">
                 <button
+                  onClick={() => setShareTarget(selectedPlan)}
+                  aria-label="Condividi scheda via QR o link"
+                  className="text-xs text-text-2 hover:text-accent border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer flex items-center gap-[5px]"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <line x1="14" y1="14" x2="14" y2="21"/>
+                    <line x1="18" y1="14" x2="21" y2="14"/>
+                    <line x1="21" y1="18" x2="21" y2="21"/>
+                  </svg>
+                  Condividi
+                </button>
+                <button
                   onClick={() => handleExportPlan(selectedPlan)}
                   aria-label="Esporta scheda come file"
                   className="text-xs text-text-2 hover:text-accent border border-border hover:border-accent-border px-2.5 py-1.5 rounded-btn transition-colors active:scale-95 font-display font-semibold bg-surface-2 cursor-pointer flex items-center gap-[5px]"
@@ -350,6 +384,10 @@ export default function PlanBuilder() {
           onSave={handleSaveExercise}
           onCancel={() => setEditingExercise(null)}
         />
+      )}
+
+      {shareTarget && (
+        <ShareModal plan={shareTarget} onClose={() => setShareTarget(null)} />
       )}
 
       {/* Conferma import (modale in-app) */}
@@ -817,6 +855,83 @@ function Stepper({
         >
           +
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ShareModal({ plan, onClose }: { plan: TrainingPlan; onClose: () => void }) {
+  const link = `${window.location.origin}${import.meta.env.BASE_URL}#import=${encodePlanParam(plan)}`;
+  const [qr, setQr] = useState<string | null>(null);
+  const [tooBig, setTooBig] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // qrcode caricato on-demand per non appesantire il bundle iniziale.
+      const { default: QRCode } = await import('qrcode');
+      // Prova prima con correzione M (più robusta), poi L (più capiente).
+      for (const errorCorrectionLevel of ['M', 'L'] as const) {
+        try {
+          const url = await QRCode.toDataURL(link, {
+            errorCorrectionLevel,
+            margin: 2,
+            width: 260,
+            color: { dark: '#161210', light: '#ffffff' },
+          });
+          if (!cancelled) { setQr(url); setTooBig(false); }
+          return;
+        } catch { /* scheda troppo grande per questo livello, riprova */ }
+      }
+      if (!cancelled) { setQr(null); setTooBig(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [link]);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard non disponibile */ }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-6"
+      style={{ background: 'rgba(10,8,7,0.6)', backdropFilter: 'blur(3px)' }}
+      onClick={onClose}
+    >
+      <div className="tt-card p-[22px] flex flex-col items-center gap-3 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="tt-display text-[20px] self-start">Condividi scheda</div>
+        <p className="font-body text-[13px] text-text-2 self-start -mt-1">
+          Inquadra il QR con la fotocamera del telefono, oppure copia il link.
+        </p>
+
+        {qr ? (
+          <img src={qr} alt="QR code della scheda" className="w-[240px] h-[240px] rounded-[8px]" />
+        ) : tooBig ? (
+          <div className="text-center font-body text-[13px] text-text-2 py-8 px-2">
+            Scheda troppo grande per un QR. Usa <span className="text-accent font-semibold">Copia link</span> o l'export su file.
+          </div>
+        ) : (
+          <div className="w-[240px] h-[240px] flex items-center justify-center text-text-3 font-mono text-xs">…</div>
+        )}
+
+        <p className="font-mono text-[11px] text-text-3">{planSummary(plan)}</p>
+
+        <div className="flex gap-3 w-full mt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-surface-2 border border-border text-text-2 py-[13px] rounded-btn font-display font-semibold text-[14px] cursor-pointer"
+          >
+            Chiudi
+          </button>
+          <button onClick={copyLink} className="flex-1 tt-btn-primary py-[13px] text-[14px]">
+            {copied ? 'Copiato!' : 'Copia link'}
+          </button>
+        </div>
       </div>
     </div>
   );
