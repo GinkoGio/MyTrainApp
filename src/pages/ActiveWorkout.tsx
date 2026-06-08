@@ -25,6 +25,41 @@ export default function ActiveWorkout() {
     return () => clearInterval(id);
   }, []);
 
+  // Single shared AudioContext, lazily created. iOS/Safari starts every
+  // context "suspended" and only lets it resume from inside a user gesture,
+  // so we keep one around and unlock it on the first tap rather than creating
+  // a fresh (suspended) one when the timer fires.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AC) return null;
+      audioCtxRef.current = new AC();
+    }
+    return audioCtxRef.current;
+  };
+
+  // Must be called from within a user gesture (a tap). Resumes the context
+  // and plays a near-silent buffer, which is what actually unlocks audio on iOS.
+  const unlockAudio = () => {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start(0);
+  };
+
+  // Unlock on the first interaction anywhere on the page, so the chime works
+  // even if the rest started without the user tapping our own button.
+  useEffect(() => {
+    const onFirstTouch = () => unlockAudio();
+    window.addEventListener('pointerdown', onFirstTouch, { once: true });
+    return () => window.removeEventListener('pointerdown', onFirstTouch);
+  }, []);
+
   // Chime once when the rest countdown reaches zero. Tracks the
   // restingUntil value already chimed for, so it fires exactly once
   // per rest period instead of on every tick.
@@ -35,23 +70,43 @@ export default function ActiveWorkout() {
     if (chimedForRef.current === target) return;
     chimedForRef.current = target;
     try {
-      const ctx = new AudioContext();
-      // C6, E6, G6 — a major triad that reads as "done".
-      const notes = [1046.5, 1318.5, 1568.0];
-      notes.forEach((freq, i) => {
-        const start = ctx.currentTime + i * 0.15;
-        const osc = ctx.createOscillator();
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      // The timer firing is not a user gesture, so the context may have been
+      // re-suspended by iOS — resume before scheduling the notes.
+      if (ctx.state === 'suspended') void ctx.resume();
+
+      // A longer, louder alarm: three urgent triple-beeps. Each beep uses a
+      // square wave (brighter / "noisier" than a sine) plus a slightly detuned
+      // second oscillator for a richer, more cutting tone.
+      const beat = 0.16;          // spacing between beeps within a burst
+      const burstGap = 0.42;      // spacing between the three bursts
+      const beepLen = 0.13;       // length of a single beep
+      const freq = 1175.0;        // D6 — high and attention-grabbing
+
+      const beep = (start: number) => {
         const gain = ctx.createGain();
-        osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.value = freq;
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
-        osc.start(start);
-        osc.stop(start + 0.4);
-      });
+        gain.gain.exponentialRampToValueAtTime(0.5, start + 0.01);
+        gain.gain.setValueAtTime(0.5, start + beepLen - 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + beepLen);
+        [freq, freq * 1.01].forEach((f) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'square';
+          osc.frequency.value = f;
+          osc.connect(gain);
+          osc.start(start);
+          osc.stop(start + beepLen + 0.02);
+        });
+      };
+
+      const t0 = ctx.currentTime;
+      for (let burst = 0; burst < 3; burst++) {
+        for (let i = 0; i < 3; i++) {
+          beep(t0 + burst * burstGap + i * beat);
+        }
+      }
     } catch { /* AudioContext non disponibile — ignora */ }
   }, [active?.restingUntil, now]);
 
@@ -88,6 +143,7 @@ export default function ActiveWorkout() {
   const progress = totalSets > 0 ? completedSetsTotal / totalSets : 0;
 
   const handleCompleteSet = () => {
+    unlockAudio(); // this tap is a user gesture — unlock iOS audio for the chime
     const reps = editReps ?? currentSet.reps;
     const weight = editWeight ?? currentSet.weight;
     completeSet(currentExerciseIndex, currentSetIndex, reps, weight);
