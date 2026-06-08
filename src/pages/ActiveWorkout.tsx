@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/useSessionStore';
 
@@ -25,23 +25,34 @@ export default function ActiveWorkout() {
     return () => clearInterval(id);
   }, []);
 
-  // Beep when rest ends
+  // Chime once when the rest countdown reaches zero. Tracks the
+  // restingUntil value already chimed for, so it fires exactly once
+  // per rest period instead of on every tick.
+  const chimedForRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!active?.restingUntil) return;
-    if (now >= active.restingUntil) {
-      try {
-        const ctx = new AudioContext();
+    const target = active?.restingUntil;
+    if (!target || now < target) return;
+    if (chimedForRef.current === target) return;
+    chimedForRef.current = target;
+    try {
+      const ctx = new AudioContext();
+      // C6, E6, G6 — a major triad that reads as "done".
+      const notes = [1046.5, 1318.5, 1568.0];
+      notes.forEach((freq, i) => {
+        const start = ctx.currentTime + i * 0.15;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
         gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } catch { /* AudioContext non disponibile — ignora */ }
-    }
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
+        osc.start(start);
+        osc.stop(start + 0.4);
+      });
+    } catch { /* AudioContext non disponibile — ignora */ }
   }, [active?.restingUntil, now]);
 
   if (!active) {
