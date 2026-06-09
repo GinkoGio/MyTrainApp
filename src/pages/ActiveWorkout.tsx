@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/useSessionStore';
 
@@ -30,18 +30,18 @@ export default function ActiveWorkout() {
   // so we keep one around and unlock it on the first tap rather than creating
   // a fresh (suspended) one when the timer fires.
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const getAudioCtx = () => {
+  const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
       audioCtxRef.current = new AC();
     }
     return audioCtxRef.current;
-  };
+  }, []);
 
   // Must be called from within a user gesture (a tap). Resumes the context
   // and plays a near-silent buffer, which is what actually unlocks audio on iOS.
-  const unlockAudio = () => {
+  const unlockAudio = useCallback(() => {
     const ctx = getAudioCtx();
     if (!ctx) return;
     if (ctx.state === 'suspended') void ctx.resume();
@@ -50,7 +50,7 @@ export default function ActiveWorkout() {
     src.buffer = buffer;
     src.connect(ctx.destination);
     src.start(0);
-  };
+  }, [getAudioCtx]);
 
   // Unlock on the first interaction anywhere on the page, so the chime works
   // even if the rest started without the user tapping our own button.
@@ -58,7 +58,7 @@ export default function ActiveWorkout() {
     const onFirstTouch = () => unlockAudio();
     window.addEventListener('pointerdown', onFirstTouch, { once: true });
     return () => window.removeEventListener('pointerdown', onFirstTouch);
-  }, []);
+  }, [unlockAudio]);
 
   // Chime once when the rest countdown reaches zero. Tracks the
   // restingUntil value already chimed for, so it fires exactly once
@@ -108,7 +108,7 @@ export default function ActiveWorkout() {
         }
       }
     } catch { /* AudioContext non disponibile — ignora */ }
-  }, [active?.restingUntil, now]);
+  }, [active?.restingUntil, now, getAudioCtx]);
 
   if (!active) {
     return (
